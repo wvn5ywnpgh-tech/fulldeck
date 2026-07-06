@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>Full Deck</title>
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="apple-touch-icon" href="./apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Full Deck">
+<meta name="theme-color" content="#122A1F">
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Alfa+Slab+One&family=IBM+Plex+Sans:wght@400;500;600&display=swap');
+:root{
+  --felt:#1B3A2D; --feltdark:#122A1F; --cream:#F6F1E3; --gold:#C9A227;
+  --ink:#22201C; --suitred:#B3352C; --suitred-lt:#E06055; --muted:#9DB8A8;
+  --slab:'Alfa Slab One',Georgia,serif; --body:'IBM Plex Sans',system-ui,sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{min-height:100%}
+body{
+  background:radial-gradient(ellipse at 50% 0%, var(--felt) 0%, var(--feltdark) 100%);
+  background-attachment:fixed;
+  color:var(--cream); font-family:var(--body);
+  padding:max(env(safe-area-inset-top),16px) 16px max(env(safe-area-inset-bottom),32px);
+}
+#app{max-width:430px;margin:0 auto}
+button{font-family:var(--body);cursor:pointer;border:none;background:none;color:inherit}
+button:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+.slab{font-family:var(--slab);font-weight:400}
+.panel{background:rgba(246,241,227,.06);border:1px solid rgba(246,241,227,.15);border-radius:16px;padding:18px;margin-bottom:14px}
+.eyebrow{color:var(--muted);font-size:12px;letter-spacing:2px;text-transform:uppercase}
+.suitrow{display:flex;align-items:center;gap:8px;background:rgba(0,0,0,.25);border-radius:10px;padding:8px 10px;font-size:13px}
+.suitgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.btn-primary{display:block;width:100%;border-radius:12px;padding:13px;font-family:var(--slab);font-size:18px;background:var(--gold);color:var(--ink)}
+.btn-primary:disabled{background:rgba(201,162,39,.3);color:rgba(34,32,28,.5);cursor:default}
+.statgrid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:14px}
+.stat{background:rgba(246,241,227,.06);border-radius:12px;padding:12px;text-align:center}
+.stat .v{font-family:var(--slab);font-size:22px}
+.stat .l{font-size:11px;color:var(--muted)}
+.histrow{display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid rgba(246,241,227,.08);font-size:13px}
+.linkbtn{color:var(--muted);font-size:13px;text-decoration:underline}
+.flip3d{transition:transform .45s cubic-bezier(.4,.1,.2,1);transform-style:preserve-3d;position:relative;width:220px;height:320px}
+@media (prefers-reduced-motion:reduce){.flip3d{transition:none}}
+.cardface{position:absolute;inset:0;border-radius:16px;backface-visibility:hidden;-webkit-backface-visibility:hidden;box-shadow:0 12px 30px rgba(0,0,0,.45)}
+.cardback{background:#7E2A22;border:10px solid var(--cream);display:flex;align-items:center;justify-content:center}
+.cardback .lattice{position:absolute;inset:8px;border-radius:8px;border:1px solid rgba(201,162,39,.6);
+  background-image:repeating-linear-gradient(45deg,rgba(201,162,39,.5) 0 1px,transparent 1px 9px),repeating-linear-gradient(-45deg,rgba(201,162,39,.5) 0 1px,transparent 1px 9px)}
+.cardback .tag{position:relative;font-family:var(--slab);color:var(--gold);font-size:15px;background:#7E2A22;padding:6px 10px;border-radius:8px;border:1px solid rgba(201,162,39,.6)}
+.cardfront{background:var(--cream);transform:rotateY(180deg)}
+.corner{position:absolute;text-align:center;font-family:var(--slab);font-size:26px;line-height:1}
+.corner .s{font-family:var(--body);font-size:22px}
+.corner.tl{top:8px;left:12px}
+.corner.br{bottom:8px;right:12px;transform:rotate(180deg)}
+.bigsuit{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:110px}
+.confirm{background:rgba(0,0,0,.3);border:1px solid rgba(246,241,227,.2);border-radius:12px;padding:12px;width:100%}
+.confirm .row{display:flex;gap:8px;margin-top:8px}
+.confirm button{flex:1;border-radius:8px;padding:8px;font-size:13px}
+.noselect{-webkit-user-select:none;user-select:none}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+"use strict";
+// ---------- Constants ----------
+const KEY = "fulldeck:v1";
+const SUITS = ["\u2660","\u2665","\u2666","\u2663"]; // ♠ ♥ ♦ ♣
+const RED_SUITS = new Set(["\u2665","\u2666"]);
+const WORKOUTS = [
+  {letter:"A", tag:"Foundation", color:"#C9A227",
+   ex:{"\u2660":"Push-ups","\u2665":"Squats","\u2666":"Sit-ups","\u2663":"Supermans"}},
+  {letter:"B", tag:"Dynamic", color:"#8FBC9F",
+   ex:{"\u2660":"Pike push-ups","\u2665":"Alternating lunges","\u2666":"Mountain climbers","\u2663":"Glute bridges"}},
+  {letter:"C", tag:"Power", color:"#C0564A",
+   ex:{"\u2660":"Triceps dips","\u2665":"Jump squats","\u2666":"Bicycle crunches","\u2663":"Burpees"}},
+];
+
+// ---------- State ----------
+let store = {programIndex:0, history:[]};
+let active = null;      // {workoutIdx, deck, drawn, startEpoch, current}
+let screen = "home";    // home | workout | done
+let current = null;
+let rot = 0;
+let animating = false;
+let confirmEnd = false;
+let confirmReset = false;
+let lastResult = null;
+
+// ---------- Persistence (on-device) ----------
+function load(){
+  try{
+    const raw = localStorage.getItem(KEY);
+    if(raw){
+      const p = JSON.parse(raw);
+      store = {programIndex: p.programIndex||0, history: p.history||[]};
+      active = p.active || null;
+      current = active && active.current ? active.current : null;
+      rot = current ? 180 : 0;
+    }
+  }catch(e){ console.error("Could not load saved data", e); }
+}
+function save(){
+  try{
+    localStorage.setItem(KEY, JSON.stringify({programIndex:store.programIndex, history:store.history, active:active}));
+  }catch(e){ console.error("Could not save", e); }
+}
+
+// ---------- Helpers ----------
+function rankLabel(v){ return ({11:"J",12:"Q",13:"K",14:"A"})[v] || String(v); }
+function buildDeck(){
+  const d=[];
+  for(const s of SUITS) for(let v=2;v<=14;v++) d.push({s,v});
+  for(let i=d.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [d[i],d[j]]=[d[j],d[i]]; }
+  return d;
+}
+function fmtTime(sec){
+  const h=Math.floor(sec/3600), m=Math.floor(sec%3600/60), s=sec%60;
+  const mm=String(m).padStart(2,"0"), ss=String(s).padStart(2,"0");
+  return h>0 ? h+":"+mm+":"+ss : m+":"+ss;
+}
+function fmtDate(iso){ const d=new Date(iso); return d.getDate()+"/"+(d.getMonth()+1); }
+function elapsed(){ return active ? Math.max(0, Math.floor((Date.now()-active.startEpoch)/1000)) : 0; }
+function esc(t){ return String(t); }
+function suitColor(s, light){ return RED_SUITS.has(s) ? (light?"var(--suitred-lt)":"var(--suitred)") : (light?"var(--cream)":"var(--ink)"); }
+
+// ---------- Actions ----------
+function startWorkout(idx){
+  active = {workoutIdx:idx, deck:buildDeck(), drawn:0, startEpoch:Date.now(), current:null};
+  current=null; rot=0; confirmEnd=false; animating=false;
+  save(); screen="workout"; render();
+}
+function resumeWorkout(){ confirmEnd=false; screen="workout"; render(); }
+function draw(){
+  if(!active || animating || active.deck.length===0) return;
+  animating=true;
+  const next = active.deck[0];
+  active = Object.assign({}, active, {deck:active.deck.slice(1), drawn:active.drawn+1, current:next});
+  rot += 180;
+  const flip = document.getElementById("flip");
+  if(flip) flip.style.transform = "rotateY("+rot+"deg)";
+  setTimeout(()=>{ current=next; updateCardFace(); updateCallout(); }, 220);
+  setTimeout(()=>{ animating=false; }, 460);
+  updateCounters();
+  save();
+}
+function finishDeck(){
+  if(!active) return;
+  const durationSec = Math.max(1, Math.round((Date.now()-active.startEpoch)/1000));
+  const entry = {date:new Date().toISOString(), workout:active.workoutIdx, durationSec, cardsDone:active.drawn, completed:true};
+  store = {programIndex:(active.workoutIdx+1)%3, history:store.history.concat([entry])};
+  active=null; lastResult=entry;
+  save(); screen="done"; render();
+}
+function endEarly(saveIt){
+  if(!active) return;
+  if(saveIt && active.drawn>0){
+    const durationSec = Math.max(1, Math.round((Date.now()-active.startEpoch)/1000));
+    store = Object.assign({}, store, {history:store.history.concat([{date:new Date().toISOString(), workout:active.workoutIdx, durationSec, cardsDone:active.drawn, completed:false}])});
+  }
+  active=null; current=null; rot=0; confirmEnd=false;
+  save(); screen="home"; render();
+}
+function resetAll(){
+  store={programIndex:0, history:[]}; active=null; current=null; rot=0; lastResult=null; confirmReset=false;
+  try{ localStorage.removeItem(KEY); }catch(e){}
+  render();
+}
+function setConfirmEnd(v){ confirmEnd=v; renderEndZone(); }
+function setConfirmReset(v){ confirmReset=v; render(); }
+function goHome(){ screen="home"; render(); }
+
+// ---------- Rendering ----------
+function homeHTML(){
+  const completed = store.history.filter(h=>h.completed);
+  const best = completed.length ? Math.min.apply(null, completed.map(h=>h.durationSec)) : null;
+  const nw = WORKOUTS[store.programIndex];
+  let h = '<div style="text-align:center;margin:8px 0 22px">'
+    + '<div class="slab" style="font-size:34px;letter-spacing:1px">FULL DECK</div>'
+    + '<div class="eyebrow" style="letter-spacing:3px">52 cards \u00b7 4 exercises \u00b7 whole body in 3 sessions</div></div>';
+
+  if(active){
+    h += '<button onclick="resumeWorkout()" style="width:100%;text-align:left;background:#3A2A18;border:1px solid var(--gold);border-radius:12px;padding:12px 14px;margin-bottom:14px">'
+      + '<div style="color:var(--gold);font-size:12px;letter-spacing:2px;text-transform:uppercase">Workout in progress</div>'
+      + '<div style="font-size:15px">Workout '+WORKOUTS[active.workoutIdx].letter+' \u2014 '+active.drawn+' of 52 cards drawn. Tap to resume.</div></button>';
+  }
+
+  h += '<div class="panel">'
+    + '<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px">'
+    + '<span class="eyebrow">Up next in your cycle</span>'
+    + '<span class="slab" style="font-size:22px;color:'+nw.color+'">'+nw.letter+' <span style="font-family:var(--body);font-size:13px;color:var(--muted)">\u00b7 '+nw.tag+'</span></span></div>'
+    + '<div class="suitgrid" style="margin-bottom:14px">'
+    + SUITS.map(s=>'<div class="suitrow"><span style="font-size:20px;color:'+suitColor(s,true)+'">'+s+'</span><span>'+nw.ex[s]+'</span></div>').join('')
+    + '</div>'
+    + '<button class="btn-primary" onclick="startWorkout('+store.programIndex+')" '+(active?'disabled':'')+'>Start Workout '+nw.letter+'</button>'
+    + (active?'<div style="text-align:center;margin-top:8px;font-size:12px;color:var(--muted)">Finish or end the current workout first.</div>':'')
+    + '</div>';
+
+  h += '<div class="statgrid">'
+    + '<div class="stat"><div class="v">'+completed.length+'</div><div class="l">decks completed</div></div>'
+    + '<div class="stat"><div class="v">'+(best?fmtTime(best):'\u2014')+'</div><div class="l">best time</div></div>'
+    + '<div class="stat"><div class="v">'+(completed.length*416)+'</div><div class="l">total reps</div></div></div>';
+
+  h += '<div class="panel"><div class="eyebrow" style="margin-bottom:8px">Workout time, minutes</div>' + chartSVG(completed)
+    + '<div style="display:flex;gap:16px;justify-content:center;margin-top:8px">'
+    + WORKOUTS.map(w=>'<span style="font-size:11px;color:var(--muted)"><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:'+w.color+';margin-right:4px"></span>Workout '+w.letter+'</span>').join('')
+    + '</div></div>';
+
+  if(store.history.length>0){
+    h += '<div class="panel"><div class="eyebrow" style="margin-bottom:6px">History</div>'
+      + store.history.slice().reverse().slice(0,8).map(x=>{
+          const w=WORKOUTS[x.workout];
+          return '<div class="histrow" style="opacity:'+(x.completed?1:.5)+'">'
+            + '<span><span class="slab" style="color:'+w.color+';font-size:13px">'+w.letter+'</span>&nbsp; '
+            + new Date(x.date).toLocaleDateString()
+            + (x.completed?'':' <span style="color:var(--muted)">\u00b7 ended at '+x.cardsDone+'/52</span>')
+            + '</span><span style="color:var(--muted)">'+fmtTime(x.durationSec)+'</span></div>';
+        }).join('')
+      + '</div>';
+  }
+
+  if(store.history.length>0 || store.programIndex!==0 || active){
+    h += '<div style="text-align:center;margin-top:4px">';
+    if(!confirmReset){
+      h += '<button class="linkbtn" onclick="setConfirmReset(true)">Reset all statistics</button>';
+    } else {
+      h += '<div class="confirm" style="border-color:rgba(192,86,74,.6);text-align:center">'
+        + '<div style="font-size:13px">Delete all history, times and cycle progress? This can\u2019t be undone.</div>'
+        + '<div class="row">'
+        + '<button onclick="resetAll()" style="background:rgba(192,86,74,.5);color:var(--cream)">Delete everything</button>'
+        + '<button onclick="setConfirmReset(false)" style="border:1px solid rgba(246,241,227,.25);color:var(--muted)">Cancel</button>'
+        + '</div></div>';
+    }
+    h += '</div>';
+  }
+  return h;
+}
+
+function chartSVG(completed){
+  if(completed.length===0){
+    return '<div style="padding:32px 0;text-align:center;color:var(--muted);font-size:14px">No completed decks yet. Your first full deck starts the chart.</div>';
+  }
+  const data = completed.slice(-14);
+  const W=360, H=170, padB=22, padT=16, padL=6, padR=6;
+  const max = Math.max.apply(null, data.map(d=>d.durationSec/60)) * 1.15;
+  const bw = (W-padL-padR)/data.length;
+  let bars='';
+  data.forEach((d,i)=>{
+    const min = d.durationSec/60;
+    const bh = (min/max)*(H-padB-padT);
+    const x = padL + i*bw + bw*0.15, y = H-padB-bh;
+    bars += '<rect x="'+x.toFixed(1)+'" y="'+y.toFixed(1)+'" width="'+(bw*0.7).toFixed(1)+'" height="'+bh.toFixed(1)+'" rx="3" fill="'+WORKOUTS[d.workout].color+'"/>'
+      + '<text x="'+(x+bw*0.35).toFixed(1)+'" y="'+(y-4).toFixed(1)+'" text-anchor="middle" font-size="9" fill="#9DB8A8">'+min.toFixed(0)+'</text>'
+      + '<text x="'+(x+bw*0.35).toFixed(1)+'" y="'+(H-8)+'" text-anchor="middle" font-size="9" fill="#9DB8A8">'+fmtDate(d.date)+'</text>';
+  });
+  return '<svg viewBox="0 0 '+W+' '+H+'" style="width:100%;height:auto" role="img" aria-label="Workout durations chart">'+bars+'</svg>';
+}
+
+function workoutHTML(){
+  const w = WORKOUTS[active.workoutIdx];
+  return '<div style="display:flex;flex-direction:column;align-items:center">'
+    + '<div style="width:100%;display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">'
+    + '<div><div class="eyebrow" style="font-size:11px">Workout '+w.letter+' \u00b7 '+w.tag+'</div>'
+    + '<div class="slab" id="timer" style="font-size:26px">'+fmtTime(elapsed())+'</div></div>'
+    + '<div style="text-align:right"><div class="eyebrow" style="font-size:11px">Cards left</div>'
+    + '<div class="slab" id="cardsleft" style="font-size:26px;color:var(--gold)">'+active.deck.length+'</div></div></div>'
+    + '<div style="width:100%;height:6px;border-radius:99px;background:rgba(0,0,0,.35);margin-bottom:22px">'
+    + '<div id="progress" style="height:6px;border-radius:99px;background:var(--gold);transition:width .3s;width:'+((active.drawn/52)*100)+'%"></div></div>'
+    + '<button class="noselect" onclick="draw()" aria-label="Draw next card" style="perspective:1200px;padding:0">'
+    + '<div class="flip3d" id="flip" style="transform:rotateY('+rot+'deg)">'
+    + '<div class="cardface cardback"><div class="lattice"></div><div class="tag" id="backtag">'+(active.drawn===0?'TAP TO DRAW':'NEXT CARD')+'</div></div>'
+    + '<div class="cardface cardfront" id="cardfront">'+cardFaceHTML()+'</div>'
+    + '</div></button>'
+    + '<div id="callout" style="text-align:center;margin:18px 0 14px;min-height:74px">'+calloutHTML()+'</div>'
+    + '<div id="bottomzone" style="width:100%">'+bottomZoneHTML()+'</div>'
+    + '<div id="endzone" style="width:100%;text-align:center;margin-top:12px">'+endZoneHTML()+'</div>'
+    + '</div>';
+}
+function cardFaceHTML(){
+  if(!current) return '';
+  const col = suitColor(current.s,false);
+  return '<div class="corner tl" style="color:'+col+'">'+rankLabel(current.v)+'<div class="s">'+current.s+'</div></div>'
+    + '<div class="corner br" style="color:'+col+'">'+rankLabel(current.v)+'<div class="s">'+current.s+'</div></div>'
+    + '<div class="bigsuit" style="color:'+col+'">'+current.s+'</div>';
+}
+function calloutHTML(){
+  if(!current) return '<div style="color:var(--muted);font-size:14px;padding-top:20px">Tap the deck when you\u2019re ready. The clock is running.</div>';
+  const w = WORKOUTS[active.workoutIdx];
+  return '<div class="slab" style="font-size:40px;color:var(--gold);line-height:1">'+current.v+' <span style="font-size:24px;color:var(--cream)">\u00d7</span></div>'
+    + '<div class="slab" style="font-size:24px">'+w.ex[current.s]+'</div>';
+}
+function bottomZoneHTML(){
+  if(active.deck.length===0){
+    return '<button class="btn-primary" style="padding:16px;font-size:20px" onclick="finishDeck()">Finish deck \u2014 stop the clock</button>';
+  }
+  const w = WORKOUTS[active.workoutIdx];
+  return '<div class="suitgrid" style="gap:6px">'
+    + SUITS.map(s=>'<div class="suitrow" style="padding:6px 10px;font-size:12px"><span style="font-size:16px;color:'+suitColor(s,true)+'">'+s+'</span><span style="color:var(--muted)">'+w.ex[s]+'</span></div>').join('')
+    + '</div>';
+}
+function endZoneHTML(){
+  if(!confirmEnd) return '<button class="linkbtn" onclick="setConfirmEnd(true)">End workout early</button>';
+  return '<div class="confirm"><div style="font-size:13px;text-align:center">End at '+active.drawn+'/52 cards? This won\u2019t count toward your cycle.</div>'
+    + '<div class="row">'
+    + '<button onclick="endEarly(true)" style="background:rgba(246,241,227,.15);color:var(--cream)">Save as unfinished</button>'
+    + '<button onclick="endEarly(false)" style="background:rgba(192,86,74,.35);color:var(--cream)">Discard</button>'
+    + '<button onclick="setConfirmEnd(false)" style="border:1px solid rgba(246,241,227,.25);color:var(--muted)">Keep going</button>'
+    + '</div></div>';
+}
+function doneHTML(){
+  const completed = store.history.filter(h=>h.completed);
+  const best = completed.length ? Math.min.apply(null, completed.map(h=>h.durationSec)) : null;
+  const isBest = best===lastResult.durationSec && completed.length>1;
+  const nw = WORKOUTS[store.programIndex];
+  return '<div style="display:flex;flex-direction:column;align-items:center;text-align:center;padding-top:40px">'
+    + '<div style="font-size:60px">'+SUITS[lastResult.workout%4]+'</div>'
+    + '<div class="slab" style="font-size:30px;color:var(--gold);margin-top:8px">Deck complete</div>'
+    + '<div style="color:var(--muted);font-size:14px;margin-bottom:24px">Workout '+WORKOUTS[lastResult.workout].letter+' \u00b7 52 cards \u00b7 416 reps</div>'
+    + '<div class="slab" style="font-size:54px;line-height:1">'+fmtTime(lastResult.durationSec)+'</div>'
+    + '<div style="color:var(--muted);font-size:13px;margin-top:6px">'+(isBest?'New best time.':'Time saved to your chart.')+'</div>'
+    + '<div style="background:rgba(246,241,227,.06);border-radius:12px;padding:12px 16px;margin:32px 0 24px;font-size:14px">Up next: <span class="slab" style="color:'+nw.color+'">Workout '+nw.letter+'</span> \u00b7 '+nw.tag+'</div>'
+    + '<button class="btn-primary" onclick="goHome()">Back to overview</button>'
+    + '</div>';
+}
+
+function render(){
+  const root = document.getElementById("app");
+  root.innerHTML = screen==="home" ? homeHTML() : screen==="workout" ? workoutHTML() : doneHTML();
+}
+function updateCounters(){
+  const cl=document.getElementById("cardsleft"), pr=document.getElementById("progress"), bt=document.getElementById("backtag"), bz=document.getElementById("bottomzone");
+  if(cl) cl.textContent = active.deck.length;
+  if(pr) pr.style.width = ((active.drawn/52)*100)+"%";
+  if(bt) bt.textContent = "NEXT CARD";
+  if(bz && active.deck.length===0) bz.innerHTML = bottomZoneHTML();
+}
+function updateCardFace(){ const el=document.getElementById("cardfront"); if(el) el.innerHTML = cardFaceHTML(); }
+function updateCallout(){ const el=document.getElementById("callout"); if(el) el.innerHTML = calloutHTML(); }
+function renderEndZone(){ const el=document.getElementById("endzone"); if(el) el.innerHTML = endZoneHTML(); }
+
+// Timer tick
+setInterval(()=>{
+  if(screen==="workout" && active){
+    const t=document.getElementById("timer");
+    if(t) t.textContent = fmtTime(elapsed());
+  }
+}, 1000);
+
+// Offline support
+if("serviceWorker" in navigator){
+  window.addEventListener("load", ()=>{ navigator.serviceWorker.register("./sw.js").catch(()=>{}); });
+}
+
+load();
+render();
+</script>
+</body>
+</html>
