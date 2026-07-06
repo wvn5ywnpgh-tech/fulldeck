@@ -72,6 +72,25 @@ select{width:auto}
 .custominput{display:flex;align-items:center;gap:8px;margin-top:8px}
 .custominput .s{font-size:20px;width:24px;text-align:center}
 .noselect{-webkit-user-select:none;user-select:none}
+.homegrid{display:block}
+.workwrap{display:flex;flex-direction:column;align-items:center;width:100%;max-width:430px;margin:0 auto}
+.workgrid{display:flex;flex-direction:column;align-items:center;width:100%}
+.workinfo{width:100%}
+.callout{text-align:center;margin:18px 0 14px;min-height:74px}
+@media (min-width:760px){
+  #app{max-width:960px}
+  body{padding-top:32px}
+  .homegrid{display:grid;grid-template-columns:1fr 1fr;gap:0 22px;align-items:start}
+  .workwrap{max-width:780px}
+  .workgrid{display:grid;grid-template-columns:auto 1fr;gap:36px;align-items:center;justify-items:start;margin-top:10px}
+  .workinfo .callout{text-align:left;margin:0 0 18px;min-height:0}
+  .workinfo #endzone{text-align:left !important}
+  .flip3d{width:280px;height:407px}
+  .corner{font-size:32px}
+  .corner .s{font-size:27px}
+  .bigsuit{font-size:140px}
+  .jokerword{font-size:26px;bottom:34px}
+}
 .chip{position:fixed;left:0;top:0;pointer-events:none;z-index:999;will-change:transform,opacity}
 .chip svg{width:100%;height:100%;filter:drop-shadow(0 2px 3px rgba(0,0,0,.35))}
 </style>
@@ -301,6 +320,8 @@ function homeHTML(){
       + '<div style="font-size:15px">'+(active.group?'Group deck':active.workoutIdx>=0?'Workout '+active.meta.letter:'Custom deck')+' \u2014 '+active.drawn+' of '+active.total+' cards drawn. Tap to resume.</div></button>';
   }
 
+  h += '<div class="homegrid"><div>';
+
   h += '<div class="panel">'
     + '<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px">'
     + '<span class="eyebrow">Up next in your cycle</span>'
@@ -372,6 +393,8 @@ function homeHTML(){
     + '<div style="font-size:12px;color:var(--muted);margin-top:8px">Jokers are shuffled into every deck you start (standard or custom) and get their own task instead of reps.</div>'
     + '</div>';
 
+  h += '</div><div>';
+
   h += '<div class="statgrid">'
     + '<div class="stat"><div class="v">'+completed.length+'</div><div class="l">decks completed</div></div>'
     + '<div class="stat"><div class="v">'+(best?fmtTime(best):'\u2014')+'</div><div class="l">best time</div></div>'
@@ -410,6 +433,7 @@ function homeHTML(){
     }
     h += '</div>';
   }
+  h += '</div></div>';
   return h;
 }
 
@@ -435,7 +459,7 @@ function chartSVG(completed){
 
 function workoutHTML(){
   const title = active.group ? 'Group deck' : active.workoutIdx>=0 ? 'Workout '+active.meta.letter : 'Custom deck';
-  return '<div style="display:flex;flex-direction:column;align-items:center">'
+  return '<div class="workwrap">'
     + '<div style="width:100%;display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">'
     + '<div><div class="eyebrow" style="font-size:11px">'+title+' \u00b7 '+active.meta.tag+'</div>'
     + '<div class="slab" id="timer" style="font-size:26px">'+fmtTime(elapsed())+'</div></div>'
@@ -443,14 +467,17 @@ function workoutHTML(){
     + '<div class="slab" id="cardsleft" style="font-size:26px;color:var(--gold)">'+active.deck.length+'</div></div></div>'
     + '<div style="width:100%;height:6px;border-radius:99px;background:rgba(0,0,0,.35);margin-bottom:22px">'
     + '<div id="progress" style="height:6px;border-radius:99px;background:var(--gold);transition:width .3s;width:'+((active.drawn/active.total)*100)+'%"></div></div>'
+    + '<div class="workgrid">'
     + '<button class="noselect" onclick="draw()" aria-label="Draw next card" style="perspective:1200px;padding:0">'
     + '<div class="flip3d" id="flip" style="transform:rotateY('+rot+'deg)">'
     + '<div class="cardface cardback" id="faceA"><div class="lattice"></div><div class="tag" id="backtag">'+(active.drawn===0?'TAP TO DRAW':'NEXT CARD')+'</div></div>'
     + '<div class="cardface cardfront" id="faceB" style="transform:rotateY(180deg)">'+cardFaceHTML()+'</div>'
     + '</div></button>'
-    + '<div id="callout" style="text-align:center;margin:18px 0 14px;min-height:74px">'+calloutHTML()+'</div>'
+    + '<div class="workinfo">'
+    + '<div id="callout" class="callout">'+calloutHTML()+'</div>'
     + '<div id="bottomzone" style="width:100%">'+bottomZoneHTML()+'</div>'
     + '<div id="endzone" style="width:100%;text-align:center;margin-top:12px">'+endZoneHTML()+'</div>'
+    + '</div></div>'
     + '</div>';
 }
 function cardFaceHTML(){
