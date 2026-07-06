@@ -57,7 +57,7 @@ select{width:auto}
 .cardback .lattice{position:absolute;inset:8px;border-radius:8px;border:1px solid rgba(201,162,39,.6);
   background-image:repeating-linear-gradient(45deg,rgba(201,162,39,.5) 0 1px,transparent 1px 9px),repeating-linear-gradient(-45deg,rgba(201,162,39,.5) 0 1px,transparent 1px 9px)}
 .cardback .tag{position:relative;font-family:var(--slab);color:var(--gold);font-size:15px;background:#7E2A22;padding:6px 10px;border-radius:8px;border:1px solid rgba(201,162,39,.6)}
-.cardfront{background:var(--cream);transform:rotateY(180deg)}
+.cardfront{background:var(--cream)}
 .corner{position:absolute;text-align:center;font-family:var(--slab);font-size:26px;line-height:1}
 .corner .s{font-family:var(--body);font-size:22px}
 .corner.tl{top:8px;left:12px}
@@ -72,6 +72,8 @@ select{width:auto}
 .custominput{display:flex;align-items:center;gap:8px;margin-top:8px}
 .custominput .s{font-size:20px;width:24px;text-align:center}
 .noselect{-webkit-user-select:none;user-select:none}
+.chip{position:fixed;left:0;top:0;pointer-events:none;z-index:999;will-change:transform,opacity}
+.chip svg{width:100%;height:100%;filter:drop-shadow(0 2px 3px rgba(0,0,0,.35))}
 </style>
 </head>
 <body>
@@ -92,9 +94,19 @@ const WORKOUTS = [
    ex:{"\u2660":"Triceps dips","\u2665":"Jump squats","\u2666":"Bicycle crunches","\u2663":"Burpees"}},
 ];
 const CUSTOM_META = {letter:"X", tag:"Custom", color:"#8F9FBC"};
+const GROUP_META = {letter:"G", tag:"Group", color:"#B48EAD"};
+const GROUP_POOL = ["Push-ups","Squats","Sit-ups","Alternating lunges","Burpees","Mountain climbers",
+  "Jumping jacks","Plank shoulder taps","Glute bridges","Supermans","Triceps dips","High knees",
+  "Jump squats","Bicycle crunches","Russian twists","Calf raises","Pike push-ups","Flutter kicks",
+  "Inchworms","Skaters","Leg raises","Star jumps"];
+const GROUP_MODES = {
+  igyg:     {name:"I go, U go",   desc:"Take turns \u2014 each card belongs to one person, full reps"},
+  together: {name:"All together", desc:"Everyone does the full reps at the same time"},
+  split:    {name:"Split reps",   desc:"Divide each card\u2019s reps across the group"}
+};
 
 // ---------- State ----------
-let store = {programIndex:0, history:[], settings:{jokers:0, jokerEx:"60 s plank"}};
+let store = {programIndex:0, history:[], settings:{jokers:0, jokerEx:"60 s plank", group:{n:2, names:[], mode:"igyg"}}};
 let active = null;   // {workoutIdx|-1, meta, ex, jokerEx, deck, total, drawn, startEpoch, current}
 let screen = "home";
 let current = null;
@@ -103,6 +115,7 @@ let animating = false;
 let confirmEnd = false;
 let confirmReset = false;
 let showCustom = false;
+let showGroup = false;
 let lastResult = null;
 
 // ---------- Persistence (on-device) ----------
@@ -116,6 +129,8 @@ function load(){
         history: p.history||[],
         settings: Object.assign({jokers:0, jokerEx:"60 s plank"}, p.settings||{})
       };
+      store.settings.group = Object.assign({n:2, names:[], mode:"igyg"}, (p.settings&&p.settings.group)||{});
+      if(!GROUP_MODES[store.settings.group.mode]) store.settings.group.mode = "igyg";
       active = p.active || null;
       // Migrate sessions saved by older app versions (missing total/meta/ex)
       if(active){
@@ -187,6 +202,33 @@ function startCustom(){
   }
   beginSession(-1, CUSTOM_META, ex);
 }
+function toggleGroup(v){ showGroup=v; if(v) showCustom=false; render(); }
+function setGroupCount(v){
+  const g=store.settings.group; g.n=Math.max(2,Math.min(8,parseInt(v,10)||2)); save(); render();
+}
+function setGroupMode(m){ if(GROUP_MODES[m]){ store.settings.group.mode=m; save(); render(); } }
+function saveGroupName(i,v){ store.settings.group.names[i]=v.trim(); save(); }
+function startGroup(){
+  const g=store.settings.group;
+  const players=[];
+  for(let i=0;i<g.n;i++){
+    const el=document.getElementById("gn"+i);
+    const typed = el && el.value.trim() ? el.value.trim() : (g.names[i]||"").trim();
+    players.push(typed || "Player "+(i+1));
+    g.names[i]=typed;
+  }
+  const pool=GROUP_POOL.slice();
+  for(let i=pool.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [pool[i],pool[j]]=[pool[j],pool[i]]; }
+  const ex={}; SUITS.forEach((s,i)=>{ ex[s]=pool[i]; });
+  const jokers=Math.max(0,Math.min(2,parseInt(store.settings.jokers,10)||0));
+  const deck=buildDeck(jokers);
+  active={group:true, mode:g.mode, players:players, workoutIdx:-1,
+          meta:{letter:GROUP_META.letter, tag:GROUP_MODES[g.mode].name, color:GROUP_META.color},
+          ex:ex, jokerEx:store.settings.jokerEx||"Joker task",
+          deck:deck, total:deck.length, drawn:0, startEpoch:Date.now(), current:null};
+  current=null; rot=0; confirmEnd=false; animating=false; showGroup=false; showCustom=false;
+  save(); screen="workout"; render();
+}
 function resumeWorkout(){ confirmEnd=false; screen="workout"; render(); }
 function draw(){
   if(!active || animating || active.deck.length===0) return;
@@ -194,9 +236,10 @@ function draw(){
   const next = active.deck[0];
   active = Object.assign({}, active, {deck:active.deck.slice(1), drawn:active.drawn+1, current:next});
   rot += 180;
+  const showB = ((rot/180)%2)===1; // odd half-turns show faceB, even show faceA
   const flip = document.getElementById("flip");
   if(flip) flip.style.transform = "rotateY("+rot+"deg)";
-  setTimeout(()=>{ current=next; updateCardFace(); updateCallout(); }, 220);
+  setTimeout(()=>{ current=next; paintFace(showB); updateCallout(); }, 220);
   setTimeout(()=>{ animating=false; }, 460);
   updateCounters();
   save();
@@ -204,16 +247,24 @@ function draw(){
 function finishDeck(){
   if(!active) return;
   const durationSec = Math.max(1, Math.round((Date.now()-active.startEpoch)/1000));
+  if(active.group){
+    lastResult = {group:true, durationSec:durationSec, cardsTotal:active.total, players:active.players.length};
+    active=null;
+    save(); screen="done"; render();
+    chipExplosion();
+    return;
+  }
   const entry = {date:new Date().toISOString(), workout:active.workoutIdx, durationSec,
                  cardsDone:active.drawn, cardsTotal:active.total, completed:true};
   const nextIdx = active.workoutIdx>=0 ? (active.workoutIdx+1)%3 : store.programIndex; // custom decks don't advance the cycle
   store = Object.assign({}, store, {programIndex:nextIdx, history:store.history.concat([entry])});
   active=null; lastResult=entry;
   save(); screen="done"; render();
+  chipExplosion();
 }
 function endEarly(saveIt){
   if(!active) return;
-  if(saveIt && active.drawn>0){
+  if(saveIt && active.drawn>0 && !active.group){
     const durationSec = Math.max(1, Math.round((Date.now()-active.startEpoch)/1000));
     store = Object.assign({}, store, {history:store.history.concat([{date:new Date().toISOString(), workout:active.workoutIdx,
       durationSec, cardsDone:active.drawn, cardsTotal:active.total, completed:false}])});
@@ -229,7 +280,7 @@ function resetAll(){
 }
 function setConfirmEnd(v){ confirmEnd=v; renderEndZone(); }
 function setConfirmReset(v){ confirmReset=v; render(); }
-function toggleCustom(v){ showCustom=v; render(); }
+function toggleCustom(v){ showCustom=v; if(v) showGroup=false; render(); }
 function setJokers(v){ store.settings.jokers = parseInt(v,10)||0; save(); }
 function setJokerEx(v){ store.settings.jokerEx = v.trim() || "Joker task"; save(); }
 function goHome(){ screen="home"; render(); }
@@ -247,7 +298,7 @@ function homeHTML(){
   if(active){
     h += '<button onclick="resumeWorkout()" style="width:100%;text-align:left;background:#3A2A18;border:1px solid var(--gold);border-radius:12px;padding:12px 14px;margin-bottom:14px">'
       + '<div style="color:var(--gold);font-size:12px;letter-spacing:2px;text-transform:uppercase">Workout in progress</div>'
-      + '<div style="font-size:15px">'+(active.workoutIdx>=0?'Workout '+active.meta.letter:'Custom deck')+' \u2014 '+active.drawn+' of '+active.total+' cards drawn. Tap to resume.</div></button>';
+      + '<div style="font-size:15px">'+(active.group?'Group deck':active.workoutIdx>=0?'Workout '+active.meta.letter:'Custom deck')+' \u2014 '+active.drawn+' of '+active.total+' cards drawn. Tap to resume.</div></button>';
   }
 
   h += '<div class="panel">'
@@ -274,6 +325,38 @@ function homeHTML(){
       + '<div style="display:flex;gap:8px;margin-top:12px">'
       + '<button class="btn-primary" style="flex:1;font-size:15px;padding:11px" onclick="startCustom()" '+(active?'disabled':'')+'>Start custom deck</button>'
       + '<button class="btn-secondary" style="flex:0 0 90px" onclick="toggleCustom(false)">Cancel</button>'
+      + '</div>';
+  }
+  h += '</div>';
+
+  // Group deck (party mode)
+  h += '<div class="panel">';
+  if(!showGroup){
+    h += '<button class="btn-secondary" onclick="toggleGroup(true)" '+(active?'disabled':'')+'>Group deck \u2014 party mode</button>'
+      + '<div style="text-align:center;margin-top:8px;font-size:12px;color:var(--muted)">Random exercises, 2\u20138 people, turn-taking rules. Not tracked \u2014 glory only.</div>';
+  } else {
+    const g = store.settings.group;
+    h += '<div class="eyebrow" style="margin-bottom:4px">Group deck</div>'
+      + '<div style="font-size:12px;color:var(--muted)">Four random exercises from the pool. Nothing is saved \u2014 pure glory.</div>'
+      + '<div class="optrow"><label for="gpn">People</label>'
+      + '<select id="gpn" onchange="setGroupCount(this.value)">'
+      + [2,3,4,5,6,7,8].map(n=>'<option value="'+n+'" '+(g.n===n?'selected':'')+'>'+n+'</option>').join('')
+      + '</select></div>';
+    for(let i=0;i<g.n;i++){
+      h += '<div class="custominput"><span class="s" style="color:var(--muted);font-size:13px">'+(i+1)+'</span>'
+        + '<input id="gn'+i+'" maxlength="20" value="'+escapeHtml(g.names[i]||'')+'" placeholder="Player '+(i+1)+'" onchange="saveGroupName('+i+',this.value)"></div>';
+    }
+    h += '<div class="eyebrow" style="margin:14px 0 6px">Rules</div>';
+    for(const key in GROUP_MODES){
+      const m = GROUP_MODES[key], sel = g.mode===key;
+      h += '<button onclick="setGroupMode(\''+key+'\')" style="display:block;width:100%;text-align:left;margin-bottom:6px;border-radius:10px;padding:9px 12px;'
+        + 'background:'+(sel?'rgba(201,162,39,.15)':'rgba(0,0,0,.25)')+';border:1px solid '+(sel?'var(--gold)':'rgba(246,241,227,.15)')+'">'
+        + '<div class="slab" style="font-size:14px;color:'+(sel?'var(--gold)':'var(--cream)')+'">'+m.name+'</div>'
+        + '<div style="font-size:12px;color:var(--muted)">'+m.desc+'</div></button>';
+    }
+    h += '<div style="display:flex;gap:8px;margin-top:12px">'
+      + '<button class="btn-primary" style="flex:1;font-size:15px;padding:11px" onclick="startGroup()" '+(active?'disabled':'')+'>Deal group deck</button>'
+      + '<button class="btn-secondary" style="flex:0 0 90px" onclick="toggleGroup(false)">Cancel</button>'
       + '</div>';
   }
   h += '</div>';
@@ -351,7 +434,7 @@ function chartSVG(completed){
 }
 
 function workoutHTML(){
-  const title = active.workoutIdx>=0 ? 'Workout '+active.meta.letter : 'Custom deck';
+  const title = active.group ? 'Group deck' : active.workoutIdx>=0 ? 'Workout '+active.meta.letter : 'Custom deck';
   return '<div style="display:flex;flex-direction:column;align-items:center">'
     + '<div style="width:100%;display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">'
     + '<div><div class="eyebrow" style="font-size:11px">'+title+' \u00b7 '+active.meta.tag+'</div>'
@@ -362,8 +445,8 @@ function workoutHTML(){
     + '<div id="progress" style="height:6px;border-radius:99px;background:var(--gold);transition:width .3s;width:'+((active.drawn/active.total)*100)+'%"></div></div>'
     + '<button class="noselect" onclick="draw()" aria-label="Draw next card" style="perspective:1200px;padding:0">'
     + '<div class="flip3d" id="flip" style="transform:rotateY('+rot+'deg)">'
-    + '<div class="cardface cardback"><div class="lattice"></div><div class="tag" id="backtag">'+(active.drawn===0?'TAP TO DRAW':'NEXT CARD')+'</div></div>'
-    + '<div class="cardface cardfront" id="cardfront">'+cardFaceHTML()+'</div>'
+    + '<div class="cardface cardback" id="faceA"><div class="lattice"></div><div class="tag" id="backtag">'+(active.drawn===0?'TAP TO DRAW':'NEXT CARD')+'</div></div>'
+    + '<div class="cardface cardfront" id="faceB" style="transform:rotateY(180deg)">'+cardFaceHTML()+'</div>'
     + '</div></button>'
     + '<div id="callout" style="text-align:center;margin:18px 0 14px;min-height:74px">'+calloutHTML()+'</div>'
     + '<div id="bottomzone" style="width:100%">'+bottomZoneHTML()+'</div>'
@@ -387,7 +470,24 @@ function calloutHTML(){
   if(!current) return '<div style="color:var(--muted);font-size:14px;padding-top:20px">Tap the deck when you\u2019re ready. The clock is running.</div>';
   if(current.joker){
     return '<div class="slab" style="font-size:34px;color:var(--gold);line-height:1.1">JOKER</div>'
-      + '<div class="slab" style="font-size:22px">'+escapeHtml(active.jokerEx)+'</div>';
+      + '<div class="slab" style="font-size:22px">'+(active.group?'Everyone: ':'')+escapeHtml(active.jokerEx)+'</div>';
+  }
+  const repsLine = '<div class="slab" style="font-size:36px;color:var(--gold);line-height:1">'+current.v+' <span style="font-size:22px;color:var(--cream)">\u00d7</span> <span style="font-size:24px;color:var(--cream)">'+escapeHtml(active.ex[current.s])+'</span></div>';
+  if(active.group){
+    const n = active.players.length;
+    if(active.mode==="igyg"){
+      const owner = active.players[(active.drawn-1+n)%n];
+      const next = active.players[active.drawn%n];
+      return '<div class="slab" style="font-size:30px;color:'+GROUP_META.color+';line-height:1.1">'+escapeHtml(owner)+'</div>'
+        + repsLine
+        + '<div style="font-size:12px;color:var(--muted);margin-top:4px">Next up: '+escapeHtml(next)+'</div>';
+    }
+    if(active.mode==="together"){
+      return '<div class="slab" style="font-size:24px;color:'+GROUP_META.color+';line-height:1.1">ALL TOGETHER</div>' + repsLine;
+    }
+    // split
+    return repsLine
+      + '<div style="font-size:14px;color:var(--muted);margin-top:4px">\u2248 '+Math.ceil(current.v/n)+' each \u00b7 '+n+' people</div>';
   }
   return '<div class="slab" style="font-size:40px;color:var(--gold);line-height:1">'+current.v+' <span style="font-size:24px;color:var(--cream)">\u00d7</span></div>'
     + '<div class="slab" style="font-size:24px">'+escapeHtml(active.ex[current.s])+'</div>';
@@ -402,6 +502,13 @@ function bottomZoneHTML(){
 }
 function endZoneHTML(){
   if(!confirmEnd) return '<button class="linkbtn" onclick="setConfirmEnd(true)">End workout early</button>';
+  if(active.group){
+    return '<div class="confirm"><div style="font-size:13px;text-align:center">End the group deck? Nothing is saved anyway.</div>'
+      + '<div class="row">'
+      + '<button onclick="endEarly(false)" style="background:rgba(192,86,74,.35);color:var(--cream)">End it</button>'
+      + '<button onclick="setConfirmEnd(false)" style="border:1px solid rgba(246,241,227,.25);color:var(--muted)">Keep going</button>'
+      + '</div></div>';
+  }
   return '<div class="confirm"><div style="font-size:13px;text-align:center">End at '+active.drawn+'/'+active.total+' cards? This won\u2019t count toward your cycle.</div>'
     + '<div class="row">'
     + '<button onclick="endEarly(true)" style="background:rgba(246,241,227,.15);color:var(--cream)">Save as unfinished</button>'
@@ -410,6 +517,16 @@ function endZoneHTML(){
     + '</div></div>';
 }
 function doneHTML(){
+  if(lastResult && lastResult.group){
+    return '<div style="display:flex;flex-direction:column;align-items:center;text-align:center;padding-top:40px">'
+      + '<div style="font-size:60px">'+JOKER_STAR+'</div>'
+      + '<div class="slab" style="font-size:30px;color:var(--gold);margin-top:8px">Deck complete</div>'
+      + '<div style="color:var(--muted);font-size:14px;margin-bottom:24px">Group deck \u00b7 '+lastResult.players+' people \u00b7 '+lastResult.cardsTotal+' cards</div>'
+      + '<div class="slab" style="font-size:54px;line-height:1">'+fmtTime(lastResult.durationSec)+'</div>'
+      + '<div style="color:var(--muted);font-size:13px;margin-top:6px">Glory only \u2014 nothing saved.</div>'
+      + '<button class="btn-primary" style="margin-top:32px" onclick="goHome()">Back to overview</button>'
+      + '</div>';
+  }
   const completed = store.history.filter(h=>h.completed);
   const best = completed.length ? Math.min.apply(null, completed.map(h=>h.durationSec)) : null;
   const isBest = best===lastResult.durationSec && completed.length>1;
@@ -425,6 +542,70 @@ function doneHTML(){
     + '<div style="background:rgba(246,241,227,.06);border-radius:12px;padding:12px 16px;margin:32px 0 24px;font-size:14px">Up next: <span class="slab" style="color:'+nw.color+'">Workout '+nw.letter+'</span> \u00b7 '+nw.tag+'</div>'
     + '<button class="btn-primary" onclick="goHome()">Back to overview</button>'
     + '</div>';
+}
+
+// ---------- Potato chip celebration ----------
+function chipSVG(v){
+  const grad = '<defs><radialGradient id="chipg" cx="35%" cy="30%" r="85%">'
+    + '<stop offset="0%" stop-color="#F7DE9B"/><stop offset="55%" stop-color="#EDBE55"/>'
+    + '<stop offset="100%" stop-color="#C98F2B"/></radialGradient></defs>';
+  const speckles = '<circle cx="15" cy="14" r="1.1" fill="#A8741F" opacity=".55"/>'
+    + '<circle cx="25" cy="22" r="1.3" fill="#A8741F" opacity=".45"/>'
+    + '<circle cx="18" cy="27" r="1" fill="#8F6318" opacity=".5"/>'
+    + '<circle cx="27" cy="12" r=".9" fill="#8F6318" opacity=".45"/>';
+  let shape;
+  if(v===0){ // classic round chip with wavy edge
+    shape = '<path d="M20 3 Q28 1 33 8 Q40 14 36 22 Q39 30 30 35 Q22 41 13 36 Q4 33 4 24 Q1 15 9 8 Q13 2 20 3 Z" fill="url(#chipg)" stroke="#B07C22" stroke-width="1.2"/>'
+      + '<path d="M11 12 Q16 7 24 8" fill="none" stroke="#F9E9B8" stroke-width="2" stroke-linecap="round" opacity=".7"/>';
+  } else if(v===1){ // folded chip
+    shape = '<path d="M5 24 Q6 11 20 7 Q34 11 35 24 Q28 31 20 31 Q12 31 5 24 Z" fill="url(#chipg)" stroke="#B07C22" stroke-width="1.2"/>'
+      + '<path d="M5 24 Q20 17 35 24 Q28 31 20 31 Q12 31 5 24 Z" fill="#B07C22" opacity=".35"/>'
+      + '<path d="M5 24 Q20 17 35 24" fill="none" stroke="#8F6318" stroke-width="1.2" opacity=".8"/>'
+      + '<path d="M11 13 Q15 9 21 9" fill="none" stroke="#F9E9B8" stroke-width="2" stroke-linecap="round" opacity=".7"/>';
+  } else { // chip with a bite taken out
+    shape = '<path d="M20 3 Q31 3 36 12 Q40 21 34 29 Q31 25 27 27 Q28 31 25 34 Q17 39 9 33 Q2 26 4 16 Q8 4 20 3 Z" fill="url(#chipg)" stroke="#B07C22" stroke-width="1.2"/>'
+      + '<path d="M10 11 Q15 6 22 7" fill="none" stroke="#F9E9B8" stroke-width="2" stroke-linecap="round" opacity=".7"/>';
+  }
+  return '<svg viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">'+grad+shape+speckles+'</svg>';
+}
+function chipExplosion(){
+  try{
+    if(!window.requestAnimationFrame || !document.body) return;
+    if(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const parts = [];
+    const cx = window.innerWidth/2, cy = Math.min(window.innerHeight*0.32, 280);
+    function burst(count){
+      for(let i=0;i<count;i++){
+        const el = document.createElement("div");
+        el.className = "chip";
+        el.innerHTML = chipSVG(i%3);
+        const size = 20 + Math.random()*26;
+        el.style.width = size+"px"; el.style.height = size+"px";
+        el.style.transform = "translate("+cx+"px,"+cy+"px)";
+        document.body.appendChild(el);
+        const a = Math.random()*Math.PI*2;
+        const sp = 170 + Math.random()*380;
+        parts.push({el, x:cx, y:cy, vx:Math.cos(a)*sp, vy:Math.sin(a)*sp-280, r:Math.random()*360, vr:(Math.random()-0.5)*900});
+      }
+    }
+    burst(24);
+    setTimeout(()=>burst(18), 1400); // second wave keeps the rain going
+    const g = 620, dur = 4000;
+    let start = null, last = null;
+    function step(ts){
+      if(start===null){ start = ts; last = ts; }
+      const dt = Math.min(0.05, (ts-last)/1000); last = ts;
+      const t = ts - start;
+      for(const p of parts){
+        p.vy += g*dt; p.x += p.vx*dt; p.y += p.vy*dt; p.r += p.vr*dt;
+        p.el.style.transform = "translate("+p.x.toFixed(1)+"px,"+p.y.toFixed(1)+"px) rotate("+p.r.toFixed(1)+"deg)";
+        if(t > dur-600) p.el.style.opacity = String(Math.max(0,(dur-t)/600));
+      }
+      if(t < dur) window.requestAnimationFrame(step);
+      else parts.forEach(p=>p.el.remove());
+    }
+    window.requestAnimationFrame(step);
+  }catch(e){ console.error("chip explosion failed", e); }
 }
 
 function render(){
@@ -445,7 +626,13 @@ function updateCounters(){
   if(bt) bt.textContent = "NEXT CARD";
   if(bz && active.deck.length===0) bz.innerHTML = bottomZoneHTML();
 }
-function updateCardFace(){ const el=document.getElementById("cardfront"); if(el) el.innerHTML = cardFaceHTML(); }
+function paintFace(showB){
+  const el = document.getElementById(showB ? "faceB" : "faceA");
+  if(!el) return;
+  el.className = "cardface cardfront"; // converts the card back into a face on its first use
+  el.style.transform = showB ? "rotateY(180deg)" : "";
+  el.innerHTML = cardFaceHTML();
+}
 function updateCallout(){ const el=document.getElementById("callout"); if(el) el.innerHTML = calloutHTML(); }
 function renderEndZone(){ const el=document.getElementById("endzone"); if(el) el.innerHTML = endZoneHTML(); }
 
