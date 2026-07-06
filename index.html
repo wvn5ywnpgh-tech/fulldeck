@@ -117,7 +117,21 @@ function load(){
         settings: Object.assign({jokers:0, jokerEx:"60 s plank"}, p.settings||{})
       };
       active = p.active || null;
-      if(active && !active.total) active.total = 52; // sessions from older versions
+      // Migrate sessions saved by older app versions (missing total/meta/ex)
+      if(active){
+        if(!active.total) active.total = Array.isArray(active.deck) ? active.drawn + active.deck.length : 52;
+        if(!active.meta || !active.ex){
+          const idx = active.workoutIdx;
+          if(typeof idx==="number" && idx>=0 && idx<WORKOUTS.length){
+            const w = WORKOUTS[idx];
+            if(!active.meta) active.meta = {letter:w.letter, tag:w.tag, color:w.color};
+            if(!active.ex) active.ex = w.ex;
+          } else if(!active.ex){
+            active = null; // unrecoverable session data — drop it rather than crash
+          }
+        }
+        if(active && !active.jokerEx) active.jokerEx = store.settings.jokerEx || "Joker task";
+      }
       current = active && active.current ? active.current : null;
       rot = current ? 180 : 0;
     }
@@ -415,7 +429,14 @@ function doneHTML(){
 
 function render(){
   const root = document.getElementById("app");
-  root.innerHTML = screen==="home" ? homeHTML() : screen==="workout" ? workoutHTML() : doneHTML();
+  try{
+    root.innerHTML = screen==="home" ? homeHTML() : screen==="workout" ? workoutHTML() : doneHTML();
+  }catch(e){
+    console.error("Render failed, recovering:", e);
+    active=null; current=null; rot=0; screen="home";
+    try{ root.innerHTML = homeHTML(); }
+    catch(e2){ root.innerHTML = '<div style="padding:40px;text-align:center">Something went wrong loading saved data.<br><br><button onclick="resetAll()" style="text-decoration:underline;color:#C9A227">Reset all data</button></div>'; }
+  }
 }
 function updateCounters(){
   const cl=document.getElementById("cardsleft"), pr=document.getElementById("progress"), bt=document.getElementById("backtag"), bz=document.getElementById("bottomzone");
