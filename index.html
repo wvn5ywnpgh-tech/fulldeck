@@ -34,6 +34,10 @@ input,select{font-family:var(--body);font-size:14px;color:var(--cream);backgroun
   border:1px solid rgba(246,241,227,.25);border-radius:8px;padding:8px 10px;width:100%}
 input::placeholder{color:rgba(157,184,168,.6)}
 select{width:auto}
+textarea{font-family:monospace;font-size:11px;color:var(--cream);background:rgba(0,0,0,.3);
+  border:1px solid rgba(246,241,227,.25);border-radius:8px;padding:8px;width:100%;height:96px;resize:vertical}
+.pill{border-radius:99px;padding:5px 14px;font-size:13px;border:1px solid rgba(246,241,227,.3);color:var(--muted)}
+.pill.sel{background:rgba(201,162,39,.15);border-color:var(--gold);color:var(--gold)}
 .slab{font-family:var(--slab);font-weight:400}
 .panel{background:rgba(246,241,227,.06);border:1px solid rgba(246,241,227,.15);border-radius:16px;padding:18px;margin-bottom:14px}
 .eyebrow{color:var(--muted);font-size:12px;letter-spacing:2px;text-transform:uppercase}
@@ -64,6 +68,8 @@ select{width:auto}
 .corner.br{bottom:8px;right:12px;transform:rotate(180deg)}
 .bigsuit{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:110px}
 .jokerword{position:absolute;left:0;right:0;bottom:26px;text-align:center;font-family:var(--slab);font-size:20px;letter-spacing:4px}
+.courtwrap{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding:38px 48px}
+.courtwrap svg{width:100%;height:100%}
 .confirm{background:rgba(0,0,0,.3);border:1px solid rgba(246,241,227,.2);border-radius:12px;padding:12px;width:100%}
 .confirm .row{display:flex;gap:8px;margin-top:8px}
 .confirm button{flex:1;border-radius:8px;padding:8px;font-size:13px}
@@ -105,28 +111,120 @@ const SUITS = ["\u2660","\u2665","\u2666","\u2663"]; // spade heart diamond club
 const RED_SUITS = new Set(["\u2665","\u2666"]);
 const JOKER_STAR = "\u2605";
 const WORKOUTS = [
-  {letter:"A", tag:"Foundation", color:"#C9A227",
-   ex:{"\u2660":"Push-ups","\u2665":"Squats","\u2666":"Sit-ups","\u2663":"Supermans"}},
-  {letter:"B", tag:"Dynamic", color:"#8FBC9F",
-   ex:{"\u2660":"Pike push-ups","\u2665":"Alternating lunges","\u2666":"Mountain climbers","\u2663":"Glute bridges"}},
-  {letter:"C", tag:"Power", color:"#C0564A",
-   ex:{"\u2660":"Triceps dips","\u2665":"Jump squats","\u2666":"Bicycle crunches","\u2663":"Burpees"}},
+  {letter:"A", color:"#C9A227"},
+  {letter:"B", color:"#8FBC9F"},
+  {letter:"C", color:"#C0564A"},
 ];
-const CUSTOM_META = {letter:"X", tag:"Custom", color:"#8F9FBC"};
-const GROUP_META = {letter:"G", tag:"Group", color:"#B48EAD"};
-const GROUP_POOL = ["Push-ups","Squats","Sit-ups","Alternating lunges","Burpees","Mountain climbers",
-  "Jumping jacks","Plank shoulder taps","Glute bridges","Supermans","Triceps dips","High knees",
-  "Jump squats","Bicycle crunches","Russian twists","Calf raises","Pike push-ups","Flutter kicks",
-  "Inchworms","Skaters","Leg raises","Star jumps"];
-const GROUP_MODES = {
-  igyg:     {name:"I go, U go",   desc:"Take turns \u2014 each card belongs to one person, full reps"},
-  together: {name:"All together", desc:"Everyone does the full reps at the same time"},
-  split:    {name:"Split reps",   desc:"Divide each card\u2019s reps across the group"}
+const CUSTOM_COLOR = "#8F9FBC";
+const DEFAULT_EX = [
+  ["Push-ups","Squats","Sit-ups","Supermans"],
+  ["Pike push-ups","Alternating lunges","Mountain climbers","Glute bridges"],
+  ["Triceps dips","Jump squats","Bicycle crunches","Burpees"],
+];
+
+// ---------- Strings (EN / SV) ----------
+const STR = {
+en: {
+  tagline:"52 cards \u00b7 4 exercises \u00b7 whole body in 3 sessions",
+  upNext:"Up next in your cycle",
+  workoutN:"Workout {l}",
+  startWorkout:"Start Workout {l}",
+  inProgress:"Workout in progress",
+  resumeLine:"{a} \u2014 {x} of {y} cards drawn. Tap to resume.",
+  finishFirst:"Finish or end the current workout first.",
+  tag0:"Foundation", tag1:"Dynamic", tag2:"Power", tagCustom:"Custom",
+  customBtn:"Custom one-off deck",
+  customHint:"Pick your own four exercises. Doesn\u2019t affect your A\u2013B\u2013C cycle.",
+  customDesc:"One exercise per suit. This session won\u2019t advance your cycle.",
+  startCustom:"Start custom deck", cancel:"Cancel", close:"Close",
+  options:"Options",
+  jokersIn:"Jokers in deck", jokerTask:"Joker task",
+  jokerHint:"Jokers are shuffled into every deck you start and get their own task instead of reps.",
+  sound:"Sound effects", on:"On", off:"Off",
+  language:"Language",
+  editWorkouts:"Edit workouts",
+  editDesc:"Change the four exercises in each workout. Applies from your next session.",
+  restoreDefaults:"Restore defaults",
+  dataBtn:"Export / import data",
+  dataDesc:"Copy this text to back up or move your data to another device. Paste a backup here and press Import to restore.",
+  exportBtn:"Export", importBtn:"Import",
+  copied:"Exported \u2014 copied to clipboard.", exported:"Exported \u2014 copy the text above.",
+  importOk:"Data imported.", importBad:"Couldn\u2019t read that data \u2014 nothing was changed.",
+  statDecks:"decks completed", statBest:"best time", statReps:"total reps",
+  chartTitle:"Workout time, minutes",
+  chartEmpty:"No completed decks yet. Your first full deck starts the chart.",
+  history:"History", endedAt:"ended at",
+  reset:"Reset all statistics",
+  resetConfirm:"Delete all history, times and cycle progress? This can\u2019t be undone.",
+  deleteAll:"Delete everything",
+  cardsLeft:"Cards left", tapToDraw:"TAP TO DRAW", nextCard:"NEXT CARD",
+  readyLine:"Tap the deck when you\u2019re ready. The clock is running.",
+  finishDeckBtn:"Finish deck \u2014 stop the clock",
+  endEarly:"End workout early",
+  endConfirm:"End at {x}/{y} cards? This won\u2019t count toward your cycle.",
+  saveUnfinished:"Save as unfinished", discard:"Discard", keepGoing:"Keep going",
+  deckComplete:"Deck complete", cardsWord:"cards", customDeck:"Custom deck",
+  newBest:"New best time.", timeSaved:"Time saved to your chart.",
+  upNextShort:"Up next:", back:"Back to overview",
+},
+sv: {
+  tagline:"52 kort \u00b7 4 \u00f6vningar \u00b7 hela kroppen p\u00e5 3 pass",
+  upNext:"N\u00e4sta i din cykel",
+  workoutN:"Pass {l}",
+  startWorkout:"Starta pass {l}",
+  inProgress:"P\u00e5g\u00e5ende pass",
+  resumeLine:"{a} \u2014 {x} av {y} kort dragna. Tryck f\u00f6r att forts\u00e4tta.",
+  finishFirst:"Avsluta p\u00e5g\u00e5ende pass f\u00f6rst.",
+  tag0:"Grund", tag1:"Dynamik", tag2:"Kraft", tagCustom:"Egen",
+  customBtn:"Egen eng\u00e5ngskortlek",
+  customHint:"V\u00e4lj fyra egna \u00f6vningar. P\u00e5verkar inte din A\u2013B\u2013C-cykel.",
+  customDesc:"En \u00f6vning per f\u00e4rg. Passet r\u00e4knas inte in i cykeln.",
+  startCustom:"Starta egen kortlek", cancel:"Avbryt", close:"St\u00e4ng",
+  options:"Alternativ",
+  jokersIn:"Jokrar i leken", jokerTask:"Jokeruppgift",
+  jokerHint:"Jokrar blandas in i varje kortlek du startar och f\u00e5r en egen uppgift ist\u00e4llet f\u00f6r reps.",
+  sound:"Ljudeffekter", on:"P\u00e5", off:"Av",
+  language:"Spr\u00e5k",
+  editWorkouts:"Redigera passen",
+  editDesc:"\u00c4ndra de fyra \u00f6vningarna i varje pass. G\u00e4ller fr\u00e5n n\u00e4sta pass.",
+  restoreDefaults:"\u00c5terst\u00e4ll standard",
+  dataBtn:"Exportera / importera data",
+  dataDesc:"Kopiera texten f\u00f6r att s\u00e4kerhetskopiera eller flytta din data till en annan enhet. Klistra in en kopia h\u00e4r och tryck Importera f\u00f6r att \u00e5terst\u00e4lla.",
+  exportBtn:"Exportera", importBtn:"Importera",
+  copied:"Exporterad \u2014 kopierad till urklipp.", exported:"Exporterad \u2014 kopiera texten ovan.",
+  importOk:"Data importerad.", importBad:"Kunde inte l\u00e4sa datan \u2014 inget \u00e4ndrades.",
+  statDecks:"klara kortlekar", statBest:"b\u00e4sta tid", statReps:"totalt reps",
+  chartTitle:"Passtid, minuter",
+  chartEmpty:"Inga klara kortlekar \u00e4n. Din f\u00f6rsta fulla kortlek startar diagrammet.",
+  history:"Historik", endedAt:"avbr\u00f6ts vid",
+  reset:"Nollst\u00e4ll all statistik",
+  resetConfirm:"Radera all historik, tider och cykelposition? Detta kan inte \u00e5ngras.",
+  deleteAll:"Radera allt",
+  cardsLeft:"Kort kvar", tapToDraw:"TRYCK H\u00c4R", nextCard:"N\u00c4STA KORT",
+  readyLine:"Tryck p\u00e5 leken n\u00e4r du \u00e4r redo. Klockan g\u00e5r.",
+  finishDeckBtn:"Avsluta leken \u2014 stoppa klockan",
+  endEarly:"Avsluta i f\u00f6rtid",
+  endConfirm:"Avsluta vid {x}/{y} kort? R\u00e4knas inte in i cykeln.",
+  saveUnfinished:"Spara som oavslutat", discard:"Sl\u00e4ng", keepGoing:"Forts\u00e4tt",
+  deckComplete:"Kortleken klar", cardsWord:"kort", customDeck:"Egen kortlek",
+  newBest:"Nytt personb\u00e4sta!", timeSaved:"Tiden \u00e4r sparad i diagrammet.",
+  upNextShort:"H\u00e4rn\u00e4st:", back:"Tillbaka till \u00f6versikten",
+}
 };
+function t(k, vars){
+  const lang = (store && store.settings && store.settings.lang) || "en";
+  let s = (STR[lang] && STR[lang][k]) || STR.en[k] || k;
+  if(vars) for(const key in vars) s = s.split("{"+key+"}").join(vars[key]);
+  return s;
+}
 
 // ---------- State ----------
-let store = {programIndex:0, history:[], settings:{jokers:0, jokerEx:"60 s plank", group:{n:2, names:[], mode:"igyg"}}};
-let active = null;   // {workoutIdx|-1, meta, ex, jokerEx, deck, total, drawn, startEpoch, current}
+function defaultSettings(){
+  return {jokers:0, jokerEx:"60 s plank", sound:true, lang:"en",
+          exercises: DEFAULT_EX.map(a=>a.slice())};
+}
+let store = {programIndex:0, history:[], settings: defaultSettings()};
+let active = null;
 let screen = "home";
 let current = null;
 let rot = 0;
@@ -134,34 +232,49 @@ let animating = false;
 let confirmEnd = false;
 let confirmReset = false;
 let showCustom = false;
-let showGroup = false;
+let showEditor = false;
+let showData = false;
+let dataMsg = "";
 let lastResult = null;
 
 // ---------- Persistence (on-device) ----------
+function validExercises(x){
+  return Array.isArray(x) && x.length===3 && x.every(w =>
+    Array.isArray(w) && w.length===4 && w.every(e => typeof e==="string" && e.trim().length>0));
+}
+function mergeSettings(s){
+  const base = defaultSettings();
+  if(s && typeof s==="object"){
+    const j = parseInt(s.jokers,10);
+    if(j===0||j===1||j===2) base.jokers = j;
+    if(typeof s.jokerEx==="string" && s.jokerEx.trim()) base.jokerEx = s.jokerEx.trim().slice(0,40);
+    if(typeof s.sound==="boolean") base.sound = s.sound;
+    if(s.lang==="en"||s.lang==="sv") base.lang = s.lang;
+    if(validExercises(s.exercises)) base.exercises = s.exercises.map(w=>w.map(e=>e.trim().slice(0,40)));
+  }
+  return base;
+}
 function load(){
   try{
     const raw = localStorage.getItem(KEY);
     if(raw){
       const p = JSON.parse(raw);
       store = {
-        programIndex: p.programIndex||0,
-        history: p.history||[],
-        settings: Object.assign({jokers:0, jokerEx:"60 s plank"}, p.settings||{})
+        programIndex: [0,1,2].includes(p.programIndex) ? p.programIndex : 0,
+        history: Array.isArray(p.history) ? p.history : [],
+        settings: mergeSettings(p.settings)
       };
-      store.settings.group = Object.assign({n:2, names:[], mode:"igyg"}, (p.settings&&p.settings.group)||{});
-      if(!GROUP_MODES[store.settings.group.mode]) store.settings.group.mode = "igyg";
       active = p.active || null;
-      // Migrate sessions saved by older app versions (missing total/meta/ex)
+      if(active && active.group) active = null; // group decks (removed feature) were never tracked
       if(active){
         if(!active.total) active.total = Array.isArray(active.deck) ? active.drawn + active.deck.length : 52;
         if(!active.meta || !active.ex){
           const idx = active.workoutIdx;
           if(typeof idx==="number" && idx>=0 && idx<WORKOUTS.length){
-            const w = WORKOUTS[idx];
-            if(!active.meta) active.meta = {letter:w.letter, tag:w.tag, color:w.color};
-            if(!active.ex) active.ex = w.ex;
+            if(!active.meta) active.meta = {letter:WORKOUTS[idx].letter, color:WORKOUTS[idx].color};
+            if(!active.ex) active.ex = exFor(idx);
           } else if(!active.ex){
-            active = null; // unrecoverable session data — drop it rather than crash
+            active = null; // unrecoverable session data
           }
         }
         if(active && !active.jokerEx) active.jokerEx = store.settings.jokerEx || "Joker task";
@@ -194,9 +307,75 @@ function fmtTime(sec){
 function fmtDate(iso){ const d=new Date(iso); return d.getDate()+"/"+(d.getMonth()+1); }
 function elapsed(){ return active ? Math.max(0, Math.floor((Date.now()-active.startEpoch)/1000)) : 0; }
 function suitColor(s, light){ return RED_SUITS.has(s) ? (light?"var(--suitred-lt)":"var(--suitred)") : (light?"var(--cream)":"var(--ink)"); }
-function entryMeta(e){ return e.workout>=0 ? WORKOUTS[e.workout] : CUSTOM_META; }
-function escapeHtml(t){
-  return String(t).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;");
+function entryMeta(e){ return e.workout>=0 ? WORKOUTS[e.workout] : {letter:"X", color:CUSTOM_COLOR}; }
+function exFor(i){ const m={}; SUITS.forEach((s,j)=>{ m[s]=store.settings.exercises[i][j]; }); return m; }
+function sessionTitle(){ return active.workoutIdx>=0 ? t("workoutN",{l:active.meta.letter}) : t("customDeck"); }
+function sessionTag(){ return active.workoutIdx>=0 ? t("tag"+active.workoutIdx) : t("tagCustom"); }
+function escapeHtml(x){
+  return String(x).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;");
+}
+
+// ---------- Sound effects (generated, no files) ----------
+let audioCtx = null;
+function snd(fn){
+  if(!store.settings.sound) return;
+  try{
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if(!AC) return;
+    if(!audioCtx) audioCtx = new AC();
+    if(audioCtx.state==="suspended") audioCtx.resume();
+    fn(audioCtx);
+  }catch(e){}
+}
+function sndSnap(){
+  snd(ctx=>{
+    const t0 = ctx.currentTime;
+    const buf = ctx.createBuffer(1, Math.floor(ctx.sampleRate*0.05), ctx.sampleRate);
+    const d = buf.getChannelData(0);
+    for(let i=0;i<d.length;i++) d[i] = (Math.random()*2-1)*Math.pow(1-i/d.length,2);
+    const src = ctx.createBufferSource(); src.buffer = buf;
+    const f = ctx.createBiquadFilter(); f.type="bandpass"; f.frequency.value=1800; f.Q.value=0.8;
+    const g = ctx.createGain(); g.gain.setValueAtTime(0.5, t0);
+    src.connect(f); f.connect(g); g.connect(ctx.destination);
+    src.start(t0);
+  });
+}
+function sndDing(freq, dur, vol, delay){
+  snd(ctx=>{
+    const t0 = ctx.currentTime + (delay||0);
+    const o = ctx.createOscillator(); o.type="sine"; o.frequency.value = freq;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.exponentialRampToValueAtTime(vol||0.25, t0+0.012);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0+(dur||0.18));
+    o.connect(g); g.connect(ctx.destination);
+    o.start(t0); o.stop(t0+(dur||0.18)+0.05);
+  });
+}
+function sndFanfare(){ sndDing(659,0.16,0.22,0); sndDing(830,0.16,0.22,0.13); sndDing(988,0.34,0.26,0.26); }
+function sndJoker(){ sndDing(392,0.12,0.2,0.05); sndDing(523,0.2,0.2,0.16); }
+function toggleSound(){
+  store.settings.sound = !store.settings.sound; save(); render();
+  if(store.settings.sound) sndDing(880,0.15,0.2,0);
+}
+
+// ---------- Wake lock (keep screen on during a workout) ----------
+let wakeLock = null;
+async function acquireWake(){
+  try{
+    if(navigator.wakeLock && !wakeLock){
+      wakeLock = await navigator.wakeLock.request("screen");
+      wakeLock.addEventListener && wakeLock.addEventListener("release", ()=>{ wakeLock=null; });
+    }
+  }catch(e){ wakeLock=null; }
+}
+function releaseWake(){
+  try{ if(wakeLock){ wakeLock.release(); wakeLock=null; } }catch(e){ wakeLock=null; }
+}
+if(typeof document.addEventListener==="function"){
+  document.addEventListener("visibilitychange", ()=>{
+    if(document.visibilityState==="visible" && screen==="workout" && active) acquireWake();
+  });
 }
 
 // ---------- Actions ----------
@@ -205,12 +384,12 @@ function beginSession(workoutIdx, meta, ex){
   const deck = buildDeck(jokers);
   active = {workoutIdx:workoutIdx, meta:meta, ex:ex, jokerEx:store.settings.jokerEx||"Joker task",
             deck:deck, total:deck.length, drawn:0, startEpoch:Date.now(), current:null};
-  current=null; rot=0; confirmEnd=false; animating=false; showCustom=false;
+  current=null; rot=0; confirmEnd=false; animating=false; showCustom=false; showEditor=false; showData=false;
   save(); screen="workout"; render();
 }
 function startWorkout(idx){
   const w = WORKOUTS[idx];
-  beginSession(idx, {letter:w.letter, tag:w.tag, color:w.color}, w.ex);
+  beginSession(idx, {letter:w.letter, color:w.color}, exFor(idx));
 }
 function startCustom(){
   const ex = {};
@@ -219,34 +398,7 @@ function startCustom(){
     const v = el && el.value.trim() ? el.value.trim() : ("Exercise "+SUITS[i]);
     ex[SUITS[i]] = v;
   }
-  beginSession(-1, CUSTOM_META, ex);
-}
-function toggleGroup(v){ showGroup=v; if(v) showCustom=false; render(); }
-function setGroupCount(v){
-  const g=store.settings.group; g.n=Math.max(2,Math.min(8,parseInt(v,10)||2)); save(); render();
-}
-function setGroupMode(m){ if(GROUP_MODES[m]){ store.settings.group.mode=m; save(); render(); } }
-function saveGroupName(i,v){ store.settings.group.names[i]=v.trim(); save(); }
-function startGroup(){
-  const g=store.settings.group;
-  const players=[];
-  for(let i=0;i<g.n;i++){
-    const el=document.getElementById("gn"+i);
-    const typed = el && el.value.trim() ? el.value.trim() : (g.names[i]||"").trim();
-    players.push(typed || "Player "+(i+1));
-    g.names[i]=typed;
-  }
-  const pool=GROUP_POOL.slice();
-  for(let i=pool.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [pool[i],pool[j]]=[pool[j],pool[i]]; }
-  const ex={}; SUITS.forEach((s,i)=>{ ex[s]=pool[i]; });
-  const jokers=Math.max(0,Math.min(2,parseInt(store.settings.jokers,10)||0));
-  const deck=buildDeck(jokers);
-  active={group:true, mode:g.mode, players:players, workoutIdx:-1,
-          meta:{letter:GROUP_META.letter, tag:GROUP_MODES[g.mode].name, color:GROUP_META.color},
-          ex:ex, jokerEx:store.settings.jokerEx||"Joker task",
-          deck:deck, total:deck.length, drawn:0, startEpoch:Date.now(), current:null};
-  current=null; rot=0; confirmEnd=false; animating=false; showGroup=false; showCustom=false;
-  save(); screen="workout"; render();
+  beginSession(-1, {letter:"X", color:CUSTOM_COLOR}, ex);
 }
 function resumeWorkout(){ confirmEnd=false; screen="workout"; render(); }
 function draw(){
@@ -258,6 +410,8 @@ function draw(){
   const showB = ((rot/180)%2)===1; // odd half-turns show faceB, even show faceA
   const flip = document.getElementById("flip");
   if(flip) flip.style.transform = "rotateY("+rot+"deg)";
+  sndSnap();
+  if(next.joker) sndJoker();
   setTimeout(()=>{ current=next; paintFace(showB); updateCallout(); }, 220);
   setTimeout(()=>{ animating=false; }, 460);
   updateCounters();
@@ -266,24 +420,18 @@ function draw(){
 function finishDeck(){
   if(!active) return;
   const durationSec = Math.max(1, Math.round((Date.now()-active.startEpoch)/1000));
-  if(active.group){
-    lastResult = {group:true, durationSec:durationSec, cardsTotal:active.total, players:active.players.length};
-    active=null;
-    save(); screen="done"; render();
-    chipExplosion();
-    return;
-  }
   const entry = {date:new Date().toISOString(), workout:active.workoutIdx, durationSec,
                  cardsDone:active.drawn, cardsTotal:active.total, completed:true};
   const nextIdx = active.workoutIdx>=0 ? (active.workoutIdx+1)%3 : store.programIndex; // custom decks don't advance the cycle
   store = Object.assign({}, store, {programIndex:nextIdx, history:store.history.concat([entry])});
   active=null; lastResult=entry;
   save(); screen="done"; render();
+  sndFanfare();
   chipExplosion();
 }
 function endEarly(saveIt){
   if(!active) return;
-  if(saveIt && active.drawn>0 && !active.group){
+  if(saveIt && active.drawn>0){
     const durationSec = Math.max(1, Math.round((Date.now()-active.startEpoch)/1000));
     store = Object.assign({}, store, {history:store.history.concat([{date:new Date().toISOString(), workout:active.workoutIdx,
       durationSec, cardsDone:active.drawn, cardsTotal:active.total, completed:false}])});
@@ -292,284 +440,64 @@ function endEarly(saveIt){
   save(); screen="home"; render();
 }
 function resetAll(){
-  store={programIndex:0, history:[], settings:{jokers:0, jokerEx:"60 s plank"}};
+  store={programIndex:0, history:[], settings: defaultSettings()};
   active=null; current=null; rot=0; lastResult=null; confirmReset=false; screen="home";
   try{ localStorage.removeItem(KEY); }catch(e){}
   render();
 }
 function setConfirmEnd(v){ confirmEnd=v; renderEndZone(); }
 function setConfirmReset(v){ confirmReset=v; render(); }
-function toggleCustom(v){ showCustom=v; if(v) showGroup=false; render(); }
+function toggleCustom(v){ showCustom=v; render(); }
+function toggleEditor(v){ showEditor=v; render(); }
+function toggleData(v){ showData=v; dataMsg=""; render(); }
 function setJokers(v){ store.settings.jokers = parseInt(v,10)||0; save(); }
 function setJokerEx(v){ store.settings.jokerEx = v.trim() || "Joker task"; save(); }
+function setLang(l){ if(l==="en"||l==="sv"){ store.settings.lang=l; save(); render(); } }
+function saveEx(w,j,v){
+  v = v.trim().slice(0,40);
+  store.settings.exercises[w][j] = v || DEFAULT_EX[w][j];
+  save();
+}
+function restoreEx(){
+  store.settings.exercises = DEFAULT_EX.map(a=>a.slice());
+  save(); render();
+}
 function goHome(){ screen="home"; render(); }
 
-// ---------- Rendering ----------
-function homeHTML(){
-  const completed = store.history.filter(h=>h.completed);
-  const best = completed.length ? Math.min.apply(null, completed.map(h=>h.durationSec)) : null;
-  const nw = WORKOUTS[store.programIndex];
-  let h = '<div style="text-align:center;margin:8px 0 22px">'
-    + '<div class="slab" style="font-size:27px;line-height:1.1;letter-spacing:1px">\u00c4NTLIGEN M\u00c5NDAG</div>'
-    + '<div class="slab" style="font-size:19px;letter-spacing:5px;color:var(--gold)">FULL DECK</div>'
-    + '<div class="eyebrow" style="letter-spacing:3px;margin-top:6px">52 cards \u00b7 4 exercises \u00b7 whole body in 3 sessions</div></div>';
-
-  if(active){
-    h += '<button onclick="resumeWorkout()" style="width:100%;text-align:left;background:#3A2A18;border:1px solid var(--gold);border-radius:12px;padding:12px 14px;margin-bottom:14px">'
-      + '<div style="color:var(--gold);font-size:12px;letter-spacing:2px;text-transform:uppercase">Workout in progress</div>'
-      + '<div style="font-size:15px">'+(active.group?'Group deck':active.workoutIdx>=0?'Workout '+active.meta.letter:'Custom deck')+' \u2014 '+active.drawn+' of '+active.total+' cards drawn. Tap to resume.</div></button>';
+// ---------- Export / import ----------
+function exportData(){
+  const el = document.getElementById("dataio");
+  if(!el) return;
+  const payload = JSON.stringify({programIndex:store.programIndex, history:store.history, settings:store.settings});
+  el.value = payload;
+  dataMsg = t("exported");
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(payload).then(()=>{ dataMsg=t("copied"); renderDataMsg(); }).catch(()=>{ renderDataMsg(); });
   }
-
-  h += '<div class="homegrid"><div>';
-
-  h += '<div class="panel">'
-    + '<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px">'
-    + '<span class="eyebrow">Up next in your cycle</span>'
-    + '<span class="slab" style="font-size:22px;color:'+nw.color+'">'+nw.letter+' <span style="font-family:var(--body);font-size:13px;color:var(--muted)">\u00b7 '+nw.tag+'</span></span></div>'
-    + '<div class="suitgrid" style="margin-bottom:14px">'
-    + SUITS.map(s=>'<div class="suitrow"><span style="font-size:20px;color:'+suitColor(s,true)+'">'+s+'</span><span>'+nw.ex[s]+'</span></div>').join('')
-    + '</div>'
-    + '<button class="btn-primary" onclick="startWorkout('+store.programIndex+')" '+(active?'disabled':'')+'>Start Workout '+nw.letter+'</button>'
-    + (active?'<div style="text-align:center;margin-top:8px;font-size:12px;color:var(--muted)">Finish or end the current workout first.</div>':'')
-    + '</div>';
-
-  // Custom one-off deck
-  h += '<div class="panel">';
-  if(!showCustom){
-    h += '<button class="btn-secondary" onclick="toggleCustom(true)" '+(active?'disabled':'')+'>Custom one-off deck</button>'
-      + '<div style="text-align:center;margin-top:8px;font-size:12px;color:var(--muted)">Pick your own four exercises. Doesn\u2019t affect your A\u2013B\u2013C cycle.</div>';
-  } else {
-    h += '<div class="eyebrow" style="margin-bottom:4px">Custom one-off deck</div>'
-      + '<div style="font-size:12px;color:var(--muted)">One exercise per suit. This session won\u2019t advance your cycle.</div>'
-      + SUITS.map((s,i)=>'<div class="custominput"><span class="s" style="color:'+suitColor(s,true)+'">'+s+'</span>'
-          + '<input id="cx'+i+'" maxlength="40" placeholder="'+["e.g. Diamond push-ups","e.g. Wall sit squats","e.g. V-ups","e.g. Calf raises"][i]+'"></div>').join('')
-      + '<div style="display:flex;gap:8px;margin-top:12px">'
-      + '<button class="btn-primary" style="flex:1;font-size:15px;padding:11px" onclick="startCustom()" '+(active?'disabled':'')+'>Start custom deck</button>'
-      + '<button class="btn-secondary" style="flex:0 0 90px" onclick="toggleCustom(false)">Cancel</button>'
-      + '</div>';
-  }
-  h += '</div>';
-
-  // Group deck (party mode)
-  h += '<div class="panel">';
-  if(!showGroup){
-    h += '<button class="btn-secondary" onclick="toggleGroup(true)" '+(active?'disabled':'')+'>Group deck \u2014 party mode</button>'
-      + '<div style="text-align:center;margin-top:8px;font-size:12px;color:var(--muted)">Random exercises, 2\u20138 people, turn-taking rules. Not tracked \u2014 glory only.</div>';
-  } else {
-    const g = store.settings.group;
-    h += '<div class="eyebrow" style="margin-bottom:4px">Group deck</div>'
-      + '<div style="font-size:12px;color:var(--muted)">Four random exercises from the pool. Nothing is saved \u2014 pure glory.</div>'
-      + '<div class="optrow"><label for="gpn">People</label>'
-      + '<select id="gpn" onchange="setGroupCount(this.value)">'
-      + [2,3,4,5,6,7,8].map(n=>'<option value="'+n+'" '+(g.n===n?'selected':'')+'>'+n+'</option>').join('')
-      + '</select></div>';
-    for(let i=0;i<g.n;i++){
-      h += '<div class="custominput"><span class="s" style="color:var(--muted);font-size:13px">'+(i+1)+'</span>'
-        + '<input id="gn'+i+'" maxlength="20" value="'+escapeHtml(g.names[i]||'')+'" placeholder="Player '+(i+1)+'" onchange="saveGroupName('+i+',this.value)"></div>';
-    }
-    h += '<div class="eyebrow" style="margin:14px 0 6px">Rules</div>';
-    for(const key in GROUP_MODES){
-      const m = GROUP_MODES[key], sel = g.mode===key;
-      h += '<button onclick="setGroupMode(\''+key+'\')" style="display:block;width:100%;text-align:left;margin-bottom:6px;border-radius:10px;padding:9px 12px;'
-        + 'background:'+(sel?'rgba(201,162,39,.15)':'rgba(0,0,0,.25)')+';border:1px solid '+(sel?'var(--gold)':'rgba(246,241,227,.15)')+'">'
-        + '<div class="slab" style="font-size:14px;color:'+(sel?'var(--gold)':'var(--cream)')+'">'+m.name+'</div>'
-        + '<div style="font-size:12px;color:var(--muted)">'+m.desc+'</div></button>';
-    }
-    h += '<div style="display:flex;gap:8px;margin-top:12px">'
-      + '<button class="btn-primary" style="flex:1;font-size:15px;padding:11px" onclick="startGroup()" '+(active?'disabled':'')+'>Deal group deck</button>'
-      + '<button class="btn-secondary" style="flex:0 0 90px" onclick="toggleGroup(false)">Cancel</button>'
-      + '</div>';
-  }
-  h += '</div>';
-
-  // Deck options (jokers)
-  h += '<div class="panel"><div class="eyebrow">Deck options</div>'
-    + '<div class="optrow"><label for="jok">Jokers in deck</label>'
-    + '<select id="jok" onchange="setJokers(this.value)">'
-    + [0,1,2].map(n=>'<option value="'+n+'" '+(store.settings.jokers===n?'selected':'')+'>'+n+'</option>').join('')
-    + '</select></div>'
-    + '<div class="optrow"><label for="jokex">Joker task</label>'
-    + '<input id="jokex" maxlength="40" value="'+escapeHtml(store.settings.jokerEx)+'" onchange="setJokerEx(this.value)" placeholder="e.g. 60 s plank"></div>'
-    + '<div style="font-size:12px;color:var(--muted);margin-top:8px">Jokers are shuffled into every deck you start (standard or custom) and get their own task instead of reps.</div>'
-    + '</div>';
-
-  h += '</div><div>';
-
-  h += '<div class="statgrid">'
-    + '<div class="stat"><div class="v">'+completed.length+'</div><div class="l">decks completed</div></div>'
-    + '<div class="stat"><div class="v">'+(best?fmtTime(best):'\u2014')+'</div><div class="l">best time</div></div>'
-    + '<div class="stat"><div class="v">'+(completed.length*416)+'</div><div class="l">total reps</div></div></div>';
-
-  h += '<div class="panel"><div class="eyebrow" style="margin-bottom:8px">Workout time, minutes</div>' + chartSVG(completed)
-    + '<div style="display:flex;gap:14px;justify-content:center;margin-top:8px;flex-wrap:wrap">'
-    + WORKOUTS.map(w=>'<span style="font-size:11px;color:var(--muted)"><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:'+w.color+';margin-right:4px"></span>Workout '+w.letter+'</span>').join('')
-    + '<span style="font-size:11px;color:var(--muted)"><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:'+CUSTOM_META.color+';margin-right:4px"></span>Custom</span>'
-    + '</div></div>';
-
-  if(store.history.length>0){
-    h += '<div class="panel"><div class="eyebrow" style="margin-bottom:6px">History</div>'
-      + store.history.slice().reverse().slice(0,8).map(x=>{
-          const m=entryMeta(x);
-          return '<div class="histrow" style="opacity:'+(x.completed?1:.5)+'">'
-            + '<span><span class="slab" style="color:'+m.color+';font-size:13px">'+m.letter+'</span>&nbsp; '
-            + new Date(x.date).toLocaleDateString()
-            + (x.completed?'':' <span style="color:var(--muted)">\u00b7 ended at '+x.cardsDone+'/'+(x.cardsTotal||52)+'</span>')
-            + '</span><span style="color:var(--muted)">'+fmtTime(x.durationSec)+'</span></div>';
-        }).join('')
-      + '</div>';
-  }
-
-  if(store.history.length>0 || store.programIndex!==0 || active){
-    h += '<div style="text-align:center;margin-top:4px">';
-    if(!confirmReset){
-      h += '<button class="linkbtn" onclick="setConfirmReset(true)">Reset all statistics</button>';
-    } else {
-      h += '<div class="confirm" style="border-color:rgba(192,86,74,.6);text-align:center">'
-        + '<div style="font-size:13px">Delete all history, times and cycle progress? This can\u2019t be undone.</div>'
-        + '<div class="row">'
-        + '<button onclick="resetAll()" style="background:rgba(192,86,74,.5);color:var(--cream)">Delete everything</button>'
-        + '<button onclick="setConfirmReset(false)" style="border:1px solid rgba(246,241,227,.25);color:var(--muted)">Cancel</button>'
-        + '</div></div>';
-    }
-    h += '</div>';
-  }
-  h += '</div></div>';
-  return h;
+  renderDataMsg();
 }
-
-function chartSVG(completed){
-  if(completed.length===0){
-    return '<div style="padding:32px 0;text-align:center;color:var(--muted);font-size:14px">No completed decks yet. Your first full deck starts the chart.</div>';
+function importData(){
+  const el = document.getElementById("dataio");
+  if(!el) return;
+  try{
+    const p = JSON.parse(el.value);
+    if(!p || typeof p!=="object" || !Array.isArray(p.history)) throw new Error("bad shape");
+    const hist = p.history.filter(h=>h && typeof h==="object" && typeof h.durationSec==="number" && typeof h.date==="string");
+    store = {
+      programIndex: [0,1,2].includes(p.programIndex) ? p.programIndex : 0,
+      history: hist,
+      settings: mergeSettings(p.settings)
+    };
+    active=null; current=null; rot=0;
+    save();
+    dataMsg = t("importOk");
+    render();
+  }catch(e){
+    dataMsg = t("importBad");
+    renderDataMsg();
   }
-  const data = completed.slice(-14);
-  const W=360, H=170, padB=22, padT=16, padL=6, padR=6;
-  const max = Math.max.apply(null, data.map(d=>d.durationSec/60)) * 1.15;
-  const bw = (W-padL-padR)/data.length;
-  let bars='';
-  data.forEach((d,i)=>{
-    const min = d.durationSec/60;
-    const bh = (min/max)*(H-padB-padT);
-    const x = padL + i*bw + bw*0.15, y = H-padB-bh;
-    bars += '<rect x="'+x.toFixed(1)+'" y="'+y.toFixed(1)+'" width="'+(bw*0.7).toFixed(1)+'" height="'+bh.toFixed(1)+'" rx="3" fill="'+entryMeta(d).color+'"/>'
-      + '<text x="'+(x+bw*0.35).toFixed(1)+'" y="'+(y-4).toFixed(1)+'" text-anchor="middle" font-size="9" fill="#9DB8A8">'+min.toFixed(0)+'</text>'
-      + '<text x="'+(x+bw*0.35).toFixed(1)+'" y="'+(H-8)+'" text-anchor="middle" font-size="9" fill="#9DB8A8">'+fmtDate(d.date)+'</text>';
-  });
-  return '<svg viewBox="0 0 '+W+' '+H+'" style="width:100%;height:auto" role="img" aria-label="Workout durations chart">'+bars+'</svg>';
 }
-
-function workoutHTML(){
-  const title = active.group ? 'Group deck' : active.workoutIdx>=0 ? 'Workout '+active.meta.letter : 'Custom deck';
-  return '<div class="workwrap">'
-    + '<div style="width:100%;display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">'
-    + '<div><div class="eyebrow" style="font-size:11px">'+title+' \u00b7 '+active.meta.tag+'</div>'
-    + '<div class="slab" id="timer" style="font-size:26px">'+fmtTime(elapsed())+'</div></div>'
-    + '<div style="text-align:right"><div class="eyebrow" style="font-size:11px">Cards left</div>'
-    + '<div class="slab" id="cardsleft" style="font-size:26px;color:var(--gold)">'+active.deck.length+'</div></div></div>'
-    + '<div style="width:100%;height:6px;border-radius:99px;background:rgba(0,0,0,.35);margin-bottom:22px">'
-    + '<div id="progress" style="height:6px;border-radius:99px;background:var(--gold);transition:width .3s;width:'+((active.drawn/active.total)*100)+'%"></div></div>'
-    + '<div class="workgrid">'
-    + '<button class="noselect" onclick="draw()" aria-label="Draw next card" style="perspective:1200px;padding:0">'
-    + '<div class="flip3d" id="flip" style="transform:rotateY('+rot+'deg)">'
-    + '<div class="cardface cardback" id="faceA"><div class="lattice"></div><div class="tag" id="backtag">'+(active.drawn===0?'TAP TO DRAW':'NEXT CARD')+'</div></div>'
-    + '<div class="cardface cardfront" id="faceB" style="transform:rotateY(180deg)">'+cardFaceHTML()+'</div>'
-    + '</div></button>'
-    + '<div class="workinfo">'
-    + '<div id="callout" class="callout">'+calloutHTML()+'</div>'
-    + '<div id="bottomzone" style="width:100%">'+bottomZoneHTML()+'</div>'
-    + '<div id="endzone" style="width:100%;text-align:center;margin-top:12px">'+endZoneHTML()+'</div>'
-    + '</div></div>'
-    + '</div>';
-}
-function cardFaceHTML(){
-  if(!current) return '';
-  if(current.joker){
-    return '<div class="corner tl" style="color:var(--gold)">'+JOKER_STAR+'</div>'
-      + '<div class="corner br" style="color:var(--gold)">'+JOKER_STAR+'</div>'
-      + '<div class="bigsuit" style="color:var(--gold);font-size:90px;padding-bottom:20px">'+JOKER_STAR+'</div>'
-      + '<div class="jokerword" style="color:var(--suitred)">JOKER</div>';
-  }
-  const col = suitColor(current.s,false);
-  return '<div class="corner tl" style="color:'+col+'">'+rankLabel(current.v)+'<div class="s">'+current.s+'</div></div>'
-    + '<div class="corner br" style="color:'+col+'">'+rankLabel(current.v)+'<div class="s">'+current.s+'</div></div>'
-    + '<div class="bigsuit" style="color:'+col+'">'+current.s+'</div>';
-}
-function calloutHTML(){
-  if(!current) return '<div style="color:var(--muted);font-size:14px;padding-top:20px">Tap the deck when you\u2019re ready. The clock is running.</div>';
-  if(current.joker){
-    return '<div class="slab" style="font-size:34px;color:var(--gold);line-height:1.1">JOKER</div>'
-      + '<div class="slab" style="font-size:22px">'+(active.group?'Everyone: ':'')+escapeHtml(active.jokerEx)+'</div>';
-  }
-  const repsLine = '<div class="slab" style="font-size:36px;color:var(--gold);line-height:1">'+current.v+' <span style="font-size:22px;color:var(--cream)">\u00d7</span> <span style="font-size:24px;color:var(--cream)">'+escapeHtml(active.ex[current.s])+'</span></div>';
-  if(active.group){
-    const n = active.players.length;
-    if(active.mode==="igyg"){
-      const owner = active.players[(active.drawn-1+n)%n];
-      const next = active.players[active.drawn%n];
-      return '<div class="slab" style="font-size:30px;color:'+GROUP_META.color+';line-height:1.1">'+escapeHtml(owner)+'</div>'
-        + repsLine
-        + '<div style="font-size:12px;color:var(--muted);margin-top:4px">Next up: '+escapeHtml(next)+'</div>';
-    }
-    if(active.mode==="together"){
-      return '<div class="slab" style="font-size:24px;color:'+GROUP_META.color+';line-height:1.1">ALL TOGETHER</div>' + repsLine;
-    }
-    // split
-    return repsLine
-      + '<div style="font-size:14px;color:var(--muted);margin-top:4px">\u2248 '+Math.ceil(current.v/n)+' each \u00b7 '+n+' people</div>';
-  }
-  return '<div class="slab" style="font-size:40px;color:var(--gold);line-height:1">'+current.v+' <span style="font-size:24px;color:var(--cream)">\u00d7</span></div>'
-    + '<div class="slab" style="font-size:24px">'+escapeHtml(active.ex[current.s])+'</div>';
-}
-function bottomZoneHTML(){
-  if(active.deck.length===0){
-    return '<button class="btn-primary" style="padding:16px;font-size:20px" onclick="finishDeck()">Finish deck \u2014 stop the clock</button>';
-  }
-  return '<div class="suitgrid" style="gap:6px">'
-    + SUITS.map(s=>'<div class="suitrow" style="padding:6px 10px;font-size:12px"><span style="font-size:16px;color:'+suitColor(s,true)+'">'+s+'</span><span style="color:var(--muted)">'+escapeHtml(active.ex[s])+'</span></div>').join('')
-    + '</div>';
-}
-function endZoneHTML(){
-  if(!confirmEnd) return '<button class="linkbtn" onclick="setConfirmEnd(true)">End workout early</button>';
-  if(active.group){
-    return '<div class="confirm"><div style="font-size:13px;text-align:center">End the group deck? Nothing is saved anyway.</div>'
-      + '<div class="row">'
-      + '<button onclick="endEarly(false)" style="background:rgba(192,86,74,.35);color:var(--cream)">End it</button>'
-      + '<button onclick="setConfirmEnd(false)" style="border:1px solid rgba(246,241,227,.25);color:var(--muted)">Keep going</button>'
-      + '</div></div>';
-  }
-  return '<div class="confirm"><div style="font-size:13px;text-align:center">End at '+active.drawn+'/'+active.total+' cards? This won\u2019t count toward your cycle.</div>'
-    + '<div class="row">'
-    + '<button onclick="endEarly(true)" style="background:rgba(246,241,227,.15);color:var(--cream)">Save as unfinished</button>'
-    + '<button onclick="endEarly(false)" style="background:rgba(192,86,74,.35);color:var(--cream)">Discard</button>'
-    + '<button onclick="setConfirmEnd(false)" style="border:1px solid rgba(246,241,227,.25);color:var(--muted)">Keep going</button>'
-    + '</div></div>';
-}
-function doneHTML(){
-  if(lastResult && lastResult.group){
-    return '<div style="display:flex;flex-direction:column;align-items:center;text-align:center;padding-top:40px">'
-      + '<div style="font-size:60px">'+JOKER_STAR+'</div>'
-      + '<div class="slab" style="font-size:30px;color:var(--gold);margin-top:8px">Deck complete</div>'
-      + '<div style="color:var(--muted);font-size:14px;margin-bottom:24px">Group deck \u00b7 '+lastResult.players+' people \u00b7 '+lastResult.cardsTotal+' cards</div>'
-      + '<div class="slab" style="font-size:54px;line-height:1">'+fmtTime(lastResult.durationSec)+'</div>'
-      + '<div style="color:var(--muted);font-size:13px;margin-top:6px">Glory only \u2014 nothing saved.</div>'
-      + '<button class="btn-primary" style="margin-top:32px" onclick="goHome()">Back to overview</button>'
-      + '</div>';
-  }
-  const completed = store.history.filter(h=>h.completed);
-  const best = completed.length ? Math.min.apply(null, completed.map(h=>h.durationSec)) : null;
-  const isBest = best===lastResult.durationSec && completed.length>1;
-  const m = entryMeta(lastResult);
-  const nw = WORKOUTS[store.programIndex];
-  const icon = lastResult.workout>=0 ? SUITS[lastResult.workout%4] : JOKER_STAR;
-  return '<div style="display:flex;flex-direction:column;align-items:center;text-align:center;padding-top:40px">'
-    + '<div style="font-size:60px">'+icon+'</div>'
-    + '<div class="slab" style="font-size:30px;color:var(--gold);margin-top:8px">Deck complete</div>'
-    + '<div style="color:var(--muted);font-size:14px;margin-bottom:24px">'+(lastResult.workout>=0?'Workout '+m.letter:'Custom deck')+' \u00b7 '+(lastResult.cardsTotal||52)+' cards \u00b7 416 reps'+((lastResult.cardsTotal||52)>52?' + jokers':'')+'</div>'
-    + '<div class="slab" style="font-size:54px;line-height:1">'+fmtTime(lastResult.durationSec)+'</div>'
-    + '<div style="color:var(--muted);font-size:13px;margin-top:6px">'+(isBest?'New best time.':'Time saved to your chart.')+'</div>'
-    + '<div style="background:rgba(246,241,227,.06);border-radius:12px;padding:12px 16px;margin:32px 0 24px;font-size:14px">Up next: <span class="slab" style="color:'+nw.color+'">Workout '+nw.letter+'</span> \u00b7 '+nw.tag+'</div>'
-    + '<button class="btn-primary" onclick="goHome()">Back to overview</button>'
-    + '</div>';
-}
+function renderDataMsg(){ const el=document.getElementById("datamsg"); if(el) el.textContent = dataMsg; }
 
 // ---------- Potato chip celebration ----------
 function chipSVG(v){
@@ -622,17 +550,306 @@ function chipExplosion(){
     function step(ts){
       if(start===null){ start = ts; last = ts; }
       const dt = Math.min(0.05, (ts-last)/1000); last = ts;
-      const t = ts - start;
+      const tt = ts - start;
       for(const p of parts){
         p.vy += g*dt; p.x += p.vx*dt; p.y += p.vy*dt; p.r += p.vr*dt;
         p.el.style.transform = "translate("+p.x.toFixed(1)+"px,"+p.y.toFixed(1)+"px) rotate("+p.r.toFixed(1)+"deg)";
-        if(t > dur-600) p.el.style.opacity = String(Math.max(0,(dur-t)/600));
+        if(tt > dur-600) p.el.style.opacity = String(Math.max(0,(dur-tt)/600));
       }
-      if(t < dur) window.requestAnimationFrame(step);
+      if(tt < dur) window.requestAnimationFrame(step);
       else parts.forEach(p=>p.el.remove());
     }
     window.requestAnimationFrame(step);
   }catch(e){ console.error("chip explosion failed", e); }
+}
+
+// ---------- Rendering ----------
+function homeHTML(){
+  const completed = store.history.filter(h=>h.completed);
+  const best = completed.length ? Math.min.apply(null, completed.map(h=>h.durationSec)) : null;
+  const nw = WORKOUTS[store.programIndex];
+  const nwEx = exFor(store.programIndex);
+  let h = '<div style="text-align:center;margin:8px 0 22px">'
+    + '<div class="slab" style="font-size:27px;line-height:1.1;letter-spacing:1px">\u00c4NTLIGEN M\u00c5NDAG</div>'
+    + '<div class="slab" style="font-size:19px;letter-spacing:5px;color:var(--gold)">FULL DECK</div>'
+    + '<div class="eyebrow" style="letter-spacing:3px;margin-top:6px">'+t("tagline")+'</div></div>';
+
+  if(active){
+    h += '<button onclick="resumeWorkout()" style="width:100%;text-align:left;background:#3A2A18;border:1px solid var(--gold);border-radius:12px;padding:12px 14px;margin-bottom:14px">'
+      + '<div style="color:var(--gold);font-size:12px;letter-spacing:2px;text-transform:uppercase">'+t("inProgress")+'</div>'
+      + '<div style="font-size:15px">'+t("resumeLine",{a:sessionTitle(), x:active.drawn, y:active.total})+'</div></button>';
+  }
+
+  h += '<div class="homegrid"><div>';
+
+  // Next workout
+  h += '<div class="panel">'
+    + '<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px">'
+    + '<span class="eyebrow">'+t("upNext")+'</span>'
+    + '<span class="slab" style="font-size:22px;color:'+nw.color+'">'+nw.letter+' <span style="font-family:var(--body);font-size:13px;color:var(--muted)">\u00b7 '+t("tag"+store.programIndex)+'</span></span></div>'
+    + '<div class="suitgrid" style="margin-bottom:14px">'
+    + SUITS.map(s=>'<div class="suitrow"><span style="font-size:20px;color:'+suitColor(s,true)+'">'+s+'</span><span>'+escapeHtml(nwEx[s])+'</span></div>').join('')
+    + '</div>'
+    + '<button class="btn-primary" onclick="startWorkout('+store.programIndex+')" '+(active?'disabled':'')+'>'+t("startWorkout",{l:nw.letter})+'</button>'
+    + (active?'<div style="text-align:center;margin-top:8px;font-size:12px;color:var(--muted)">'+t("finishFirst")+'</div>':'')
+    + '</div>';
+
+  // Custom one-off deck
+  h += '<div class="panel">';
+  if(!showCustom){
+    h += '<button class="btn-secondary" onclick="toggleCustom(true)" '+(active?'disabled':'')+'>'+t("customBtn")+'</button>'
+      + '<div style="text-align:center;margin-top:8px;font-size:12px;color:var(--muted)">'+t("customHint")+'</div>';
+  } else {
+    h += '<div class="eyebrow" style="margin-bottom:4px">'+t("customBtn")+'</div>'
+      + '<div style="font-size:12px;color:var(--muted)">'+t("customDesc")+'</div>'
+      + SUITS.map((s,i)=>'<div class="custominput"><span class="s" style="color:'+suitColor(s,true)+'">'+s+'</span>'
+          + '<input id="cx'+i+'" maxlength="40" placeholder="'+escapeHtml(DEFAULT_EX[0][i])+'"></div>').join('')
+      + '<div style="display:flex;gap:8px;margin-top:12px">'
+      + '<button class="btn-primary" style="flex:1;font-size:15px;padding:11px" onclick="startCustom()" '+(active?'disabled':'')+'>'+t("startCustom")+'</button>'
+      + '<button class="btn-secondary" style="flex:0 0 100px" onclick="toggleCustom(false)">'+t("cancel")+'</button>'
+      + '</div>';
+  }
+  h += '</div>';
+
+  // Options: jokers, sound, language, edit workouts, data
+  h += '<div class="panel"><div class="eyebrow">'+t("options")+'</div>'
+    + '<div class="optrow"><label for="jok">'+t("jokersIn")+'</label>'
+    + '<select id="jok" onchange="setJokers(this.value)">'
+    + [0,1,2].map(n=>'<option value="'+n+'" '+(store.settings.jokers===n?'selected':'')+'>'+n+'</option>').join('')
+    + '</select></div>'
+    + '<div class="optrow"><label for="jokex">'+t("jokerTask")+'</label>'
+    + '<input id="jokex" maxlength="40" value="'+escapeHtml(store.settings.jokerEx)+'" onchange="setJokerEx(this.value)" placeholder="60 s plank"></div>'
+    + '<div style="font-size:12px;color:var(--muted);margin:8px 0 4px">'+t("jokerHint")+'</div>'
+    + '<div class="optrow"><label>'+t("sound")+'</label>'
+    + '<button class="pill '+(store.settings.sound?'sel':'')+'" onclick="toggleSound()">'+(store.settings.sound?t("on"):t("off"))+'</button></div>'
+    + '<div class="optrow"><label>'+t("language")+'</label>'
+    + '<button class="pill '+(store.settings.lang!=="sv"?'sel':'')+'" onclick="setLang(\'en\')">English</button>'
+    + '<button class="pill '+(store.settings.lang==="sv"?'sel':'')+'" onclick="setLang(\'sv\')">Svenska</button></div>';
+
+  // Exercise editor
+  if(!showEditor){
+    h += '<button class="btn-secondary" style="margin-top:12px" onclick="toggleEditor(true)">'+t("editWorkouts")+'</button>';
+  } else {
+    h += '<div class="eyebrow" style="margin:14px 0 2px">'+t("editWorkouts")+'</div>'
+      + '<div style="font-size:12px;color:var(--muted)">'+t("editDesc")+'</div>';
+    for(let w=0; w<3; w++){
+      h += '<div style="margin-top:10px"><span class="slab" style="font-size:14px;color:'+WORKOUTS[w].color+'">'+WORKOUTS[w].letter+'</span>'
+        + ' <span style="font-size:12px;color:var(--muted)">\u00b7 '+t("tag"+w)+'</span></div>';
+      for(let j=0; j<4; j++){
+        h += '<div class="custominput"><span class="s" style="color:'+suitColor(SUITS[j],true)+'">'+SUITS[j]+'</span>'
+          + '<input id="ex'+w+'_'+j+'" maxlength="40" value="'+escapeHtml(store.settings.exercises[w][j])+'" onchange="saveEx('+w+','+j+',this.value)"></div>';
+      }
+    }
+    h += '<div style="display:flex;gap:8px;margin-top:12px">'
+      + '<button class="btn-secondary" style="flex:1" onclick="restoreEx()">'+t("restoreDefaults")+'</button>'
+      + '<button class="btn-secondary" style="flex:0 0 100px" onclick="toggleEditor(false)">'+t("close")+'</button>'
+      + '</div>';
+  }
+
+  // Export / import
+  if(!showData){
+    h += '<button class="btn-secondary" style="margin-top:10px" onclick="toggleData(true)">'+t("dataBtn")+'</button>';
+  } else {
+    h += '<div class="eyebrow" style="margin:14px 0 2px">'+t("dataBtn")+'</div>'
+      + '<div style="font-size:12px;color:var(--muted);margin-bottom:8px">'+t("dataDesc")+'</div>'
+      + '<textarea id="dataio" spellcheck="false"></textarea>'
+      + '<div style="display:flex;gap:8px;margin-top:8px;align-items:center">'
+      + '<button class="btn-secondary" style="flex:1" onclick="exportData()">'+t("exportBtn")+'</button>'
+      + '<button class="btn-secondary" style="flex:1" onclick="importData()">'+t("importBtn")+'</button>'
+      + '<button class="btn-secondary" style="flex:0 0 90px" onclick="toggleData(false)">'+t("close")+'</button>'
+      + '</div>'
+      + '<div id="datamsg" style="font-size:12px;color:var(--gold);margin-top:6px;min-height:16px">'+escapeHtml(dataMsg)+'</div>';
+  }
+  h += '</div>';
+
+  h += '</div><div>';
+
+  // Stats
+  h += '<div class="statgrid">'
+    + '<div class="stat"><div class="v">'+completed.length+'</div><div class="l">'+t("statDecks")+'</div></div>'
+    + '<div class="stat"><div class="v">'+(best?fmtTime(best):'\u2014')+'</div><div class="l">'+t("statBest")+'</div></div>'
+    + '<div class="stat"><div class="v">'+(completed.length*416)+'</div><div class="l">'+t("statReps")+'</div></div></div>';
+
+  // Chart
+  h += '<div class="panel"><div class="eyebrow" style="margin-bottom:8px">'+t("chartTitle")+'</div>' + chartSVG(completed)
+    + '<div style="display:flex;gap:14px;justify-content:center;margin-top:8px;flex-wrap:wrap">'
+    + WORKOUTS.map((w,i)=>'<span style="font-size:11px;color:var(--muted)"><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:'+w.color+';margin-right:4px"></span>'+t("workoutN",{l:w.letter})+'</span>').join('')
+    + '<span style="font-size:11px;color:var(--muted)"><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:'+CUSTOM_COLOR+';margin-right:4px"></span>'+t("tagCustom")+'</span>'
+    + '</div></div>';
+
+  // History
+  if(store.history.length>0){
+    h += '<div class="panel"><div class="eyebrow" style="margin-bottom:6px">'+t("history")+'</div>'
+      + store.history.slice().reverse().slice(0,8).map(x=>{
+          const m=entryMeta(x);
+          return '<div class="histrow" style="opacity:'+(x.completed?1:.5)+'">'
+            + '<span><span class="slab" style="color:'+m.color+';font-size:13px">'+m.letter+'</span>&nbsp; '
+            + new Date(x.date).toLocaleDateString(store.settings.lang==="sv"?"sv-SE":undefined)
+            + (x.completed?'':' <span style="color:var(--muted)">\u00b7 '+t("endedAt")+' '+x.cardsDone+'/'+(x.cardsTotal||52)+'</span>')
+            + '</span><span style="color:var(--muted)">'+fmtTime(x.durationSec)+'</span></div>';
+        }).join('')
+      + '</div>';
+  }
+
+  // Reset
+  if(store.history.length>0 || store.programIndex!==0 || active){
+    h += '<div style="text-align:center;margin-top:4px">';
+    if(!confirmReset){
+      h += '<button class="linkbtn" onclick="setConfirmReset(true)">'+t("reset")+'</button>';
+    } else {
+      h += '<div class="confirm" style="border-color:rgba(192,86,74,.6);text-align:center">'
+        + '<div style="font-size:13px">'+t("resetConfirm")+'</div>'
+        + '<div class="row">'
+        + '<button onclick="resetAll()" style="background:rgba(192,86,74,.5);color:var(--cream)">'+t("deleteAll")+'</button>'
+        + '<button onclick="setConfirmReset(false)" style="border:1px solid rgba(246,241,227,.25);color:var(--muted)">'+t("cancel")+'</button>'
+        + '</div></div>';
+    }
+    h += '</div>';
+  }
+  h += '</div></div>';
+  return h;
+}
+
+function chartSVG(completed){
+  if(completed.length===0){
+    return '<div style="padding:32px 0;text-align:center;color:var(--muted);font-size:14px">'+t("chartEmpty")+'</div>';
+  }
+  const data = completed.slice(-14);
+  const W=360, H=170, padB=22, padT=16, padL=6, padR=6;
+  const max = Math.max.apply(null, data.map(d=>d.durationSec/60)) * 1.15;
+  const bw = (W-padL-padR)/data.length;
+  let bars='';
+  data.forEach((d,i)=>{
+    const min = d.durationSec/60;
+    const bh = (min/max)*(H-padB-padT);
+    const x = padL + i*bw + bw*0.15, y = H-padB-bh;
+    bars += '<rect x="'+x.toFixed(1)+'" y="'+y.toFixed(1)+'" width="'+(bw*0.7).toFixed(1)+'" height="'+bh.toFixed(1)+'" rx="3" fill="'+entryMeta(d).color+'"/>'
+      + '<text x="'+(x+bw*0.35).toFixed(1)+'" y="'+(y-4).toFixed(1)+'" text-anchor="middle" font-size="9" fill="#9DB8A8">'+min.toFixed(0)+'</text>'
+      + '<text x="'+(x+bw*0.35).toFixed(1)+'" y="'+(H-8)+'" text-anchor="middle" font-size="9" fill="#9DB8A8">'+fmtDate(d.date)+'</text>';
+  });
+  return '<svg viewBox="0 0 '+W+' '+H+'" style="width:100%;height:auto" role="img" aria-label="Workout durations chart">'+bars+'</svg>';
+}
+
+function workoutHTML(){
+  return '<div class="workwrap">'
+    + '<div style="width:100%;display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">'
+    + '<div><div class="eyebrow" style="font-size:11px">'+sessionTitle()+' \u00b7 '+sessionTag()+'</div>'
+    + '<div class="slab" id="timer" style="font-size:26px">'+fmtTime(elapsed())+'</div></div>'
+    + '<div style="text-align:right"><div class="eyebrow" style="font-size:11px">'+t("cardsLeft")+'</div>'
+    + '<div class="slab" id="cardsleft" style="font-size:26px;color:var(--gold)">'+active.deck.length+'</div></div></div>'
+    + '<div style="width:100%;height:6px;border-radius:99px;background:rgba(0,0,0,.35);margin-bottom:22px">'
+    + '<div id="progress" style="height:6px;border-radius:99px;background:var(--gold);transition:width .3s;width:'+((active.drawn/active.total)*100)+'%"></div></div>'
+    + '<div class="workgrid">'
+    + '<button class="noselect" onclick="draw()" aria-label="Draw next card" style="perspective:1200px;padding:0">'
+    + '<div class="flip3d" id="flip" style="transform:rotateY('+rot+'deg)">'
+    + '<div class="cardface cardback" id="faceA"><div class="lattice"></div><div class="tag" id="backtag">'+(active.drawn===0?t("tapToDraw"):t("nextCard"))+'</div></div>'
+    + '<div class="cardface cardfront" id="faceB" style="transform:rotateY(180deg)">'+cardFaceHTML()+'</div>'
+    + '</div></button>'
+    + '<div class="workinfo">'
+    + '<div id="callout" class="callout">'+calloutHTML()+'</div>'
+    + '<div id="bottomzone" style="width:100%">'+bottomZoneHTML()+'</div>'
+    + '<div id="endzone" style="width:100%;text-align:center;margin-top:12px">'+endZoneHTML()+'</div>'
+    + '</div></div>'
+    + '</div>';
+}
+function courtSVG(v, suit){
+  const red = RED_SUITS.has(suit);
+  const P = red ? "#B3352C" : "#22201C";
+  const G = "#C9A227";
+  const S = "#EFD9B4";
+  const frame = '<rect x="3" y="3" width="94" height="134" rx="6" fill="none" stroke="'+P+'" stroke-width="2"/>'
+    + '<rect x="7" y="7" width="86" height="126" rx="3" fill="none" stroke="'+G+'" stroke-width="1" opacity=".7"/>';
+  const chest = '<text x="50" y="112" font-size="15" fill="'+G+'" text-anchor="middle" font-family="sans-serif">'+suit+'</text>';
+  let fig = '';
+  if(v===13){ // King
+    fig = '<path d="M32 40 L32 26 L41 33 L50 20 L59 33 L68 26 L68 40 Z" fill="'+G+'" stroke="'+P+'" stroke-width="1.5"/>'
+      + '<circle cx="50" cy="18" r="2.4" fill="'+P+'"/><circle cx="32" cy="24" r="2" fill="'+P+'"/><circle cx="68" cy="24" r="2" fill="'+P+'"/>'
+      + '<rect x="32" y="39" width="36" height="5" rx="2" fill="'+G+'" stroke="'+P+'" stroke-width="1.2"/>'
+      + '<circle cx="50" cy="57" r="13" fill="'+S+'" stroke="'+P+'" stroke-width="1.5"/>'
+      + '<circle cx="45" cy="55" r="1.5" fill="'+P+'"/><circle cx="55" cy="55" r="1.5" fill="'+P+'"/>'
+      + '<path d="M38 61 Q50 68 62 61 Q64 79 50 84 Q36 79 38 61 Z" fill="'+P+'"/>'
+      + '<path d="M23 118 Q25 94 38 88 L50 94 L62 88 Q75 94 77 118 Z" fill="'+P+'"/>'
+      + '<path d="M38 88 L50 94 L62 88" fill="none" stroke="'+G+'" stroke-width="2.4"/>' + chest;
+  } else if(v===12){ // Queen
+    fig = '<circle cx="50" cy="58" r="16" fill="'+P+'"/>'
+      + '<circle cx="50" cy="59" r="12" fill="'+S+'" stroke="'+P+'" stroke-width="1.2"/>'
+      + '<path d="M36 38 L42 29 L50 35 L58 29 L64 38 Z" fill="'+G+'" stroke="'+P+'" stroke-width="1.4"/>'
+      + '<circle cx="42" cy="27" r="1.8" fill="'+P+'"/><circle cx="58" cy="27" r="1.8" fill="'+P+'"/><circle cx="50" cy="33" r="1.6" fill="'+P+'"/>'
+      + '<circle cx="45" cy="57" r="1.4" fill="'+P+'"/><circle cx="55" cy="57" r="1.4" fill="'+P+'"/>'
+      + '<path d="M46 65 Q50 68 54 65" fill="none" stroke="'+P+'" stroke-width="1.3" stroke-linecap="round"/>'
+      + '<circle cx="36" cy="62" r="1.8" fill="'+G+'"/><circle cx="64" cy="62" r="1.8" fill="'+G+'"/>'
+      + '<path d="M24 118 Q27 94 40 89 L50 95 L60 89 Q73 94 76 118 Z" fill="'+P+'"/>'
+      + '<path d="M42 92 Q50 99 58 92" fill="none" stroke="'+G+'" stroke-width="2"/>' + chest;
+  } else { // Jack
+    fig = '<path d="M34 42 Q34 26 52 25 Q68 26 66 38 L61 43 Q50 36 38 45 Z" fill="'+P+'"/>'
+      + '<path d="M63 30 Q74 17 79 21 Q74 30 65 35 Z" fill="'+G+'" stroke="'+P+'" stroke-width="1.2"/>'
+      + '<circle cx="50" cy="57" r="12" fill="'+S+'" stroke="'+P+'" stroke-width="1.5"/>'
+      + '<circle cx="45.5" cy="55" r="1.4" fill="'+P+'"/><circle cx="55" cy="55" r="1.4" fill="'+P+'"/>'
+      + '<path d="M46 63 Q50 66 54 63" fill="none" stroke="'+P+'" stroke-width="1.3" stroke-linecap="round"/>'
+      + '<path d="M25 118 Q27 95 40 89 L50 94 L60 89 Q73 95 75 118 Z" fill="'+P+'"/>'
+      + '<path d="M40 89 L68 118 L59 118 L36 93 Z" fill="'+G+'" opacity=".95"/>' + chest;
+  }
+  return '<svg viewBox="0 0 100 140" xmlns="http://www.w3.org/2000/svg">'+frame+fig+'</svg>';
+}
+function cardFaceHTML(){
+  if(!current) return '';
+  if(current.joker){
+    return '<div class="corner tl" style="color:var(--gold)">'+JOKER_STAR+'</div>'
+      + '<div class="corner br" style="color:var(--gold)">'+JOKER_STAR+'</div>'
+      + '<div class="bigsuit" style="color:var(--gold);font-size:90px;padding-bottom:20px">'+JOKER_STAR+'</div>'
+      + '<div class="jokerword" style="color:var(--suitred)">JOKER</div>';
+  }
+  const col = suitColor(current.s,false);
+  const center = (current.v>=11 && current.v<=13)
+    ? '<div class="courtwrap">'+courtSVG(current.v, current.s)+'</div>'
+    : '<div class="bigsuit" style="color:'+col+'">'+current.s+'</div>';
+  return '<div class="corner tl" style="color:'+col+'">'+rankLabel(current.v)+'<div class="s">'+current.s+'</div></div>'
+    + '<div class="corner br" style="color:'+col+'">'+rankLabel(current.v)+'<div class="s">'+current.s+'</div></div>'
+    + center;
+}
+function calloutHTML(){
+  if(!current) return '<div style="color:var(--muted);font-size:14px;padding-top:20px">'+t("readyLine")+'</div>';
+  if(current.joker){
+    return '<div class="slab" style="font-size:34px;color:var(--gold);line-height:1.1">JOKER</div>'
+      + '<div class="slab" style="font-size:22px">'+escapeHtml(active.jokerEx)+'</div>';
+  }
+  return '<div class="slab" style="font-size:40px;color:var(--gold);line-height:1">'+current.v+' <span style="font-size:24px;color:var(--cream)">\u00d7</span></div>'
+    + '<div class="slab" style="font-size:24px">'+escapeHtml(active.ex[current.s])+'</div>';
+}
+function bottomZoneHTML(){
+  if(active.deck.length===0){
+    return '<button class="btn-primary" style="padding:16px;font-size:20px" onclick="finishDeck()">'+t("finishDeckBtn")+'</button>';
+  }
+  return '<div class="suitgrid" style="gap:6px">'
+    + SUITS.map(s=>'<div class="suitrow" style="padding:6px 10px;font-size:12px"><span style="font-size:16px;color:'+suitColor(s,true)+'">'+s+'</span><span style="color:var(--muted)">'+escapeHtml(active.ex[s])+'</span></div>').join('')
+    + '</div>';
+}
+function endZoneHTML(){
+  if(!confirmEnd) return '<button class="linkbtn" onclick="setConfirmEnd(true)">'+t("endEarly")+'</button>';
+  return '<div class="confirm"><div style="font-size:13px;text-align:center">'+t("endConfirm",{x:active.drawn, y:active.total})+'</div>'
+    + '<div class="row">'
+    + '<button onclick="endEarly(true)" style="background:rgba(246,241,227,.15);color:var(--cream)">'+t("saveUnfinished")+'</button>'
+    + '<button onclick="endEarly(false)" style="background:rgba(192,86,74,.35);color:var(--cream)">'+t("discard")+'</button>'
+    + '<button onclick="setConfirmEnd(false)" style="border:1px solid rgba(246,241,227,.25);color:var(--muted)">'+t("keepGoing")+'</button>'
+    + '</div></div>';
+}
+function doneHTML(){
+  const completed = store.history.filter(h=>h.completed);
+  const best = completed.length ? Math.min.apply(null, completed.map(h=>h.durationSec)) : null;
+  const isBest = best===lastResult.durationSec && completed.length>1;
+  const m = entryMeta(lastResult);
+  const nw = WORKOUTS[store.programIndex];
+  const icon = lastResult.workout>=0 ? SUITS[lastResult.workout%4] : JOKER_STAR;
+  const title = lastResult.workout>=0 ? t("workoutN",{l:m.letter}) : t("customDeck");
+  return '<div style="display:flex;flex-direction:column;align-items:center;text-align:center;padding-top:40px">'
+    + '<div style="font-size:60px">'+icon+'</div>'
+    + '<div class="slab" style="font-size:30px;color:var(--gold);margin-top:8px">'+t("deckComplete")+'</div>'
+    + '<div style="color:var(--muted);font-size:14px;margin-bottom:24px">'+title+' \u00b7 '+(lastResult.cardsTotal||52)+' '+t("cardsWord")+' \u00b7 416 reps'+((lastResult.cardsTotal||52)>52?' + jokers':'')+'</div>'
+    + '<div class="slab" style="font-size:54px;line-height:1">'+fmtTime(lastResult.durationSec)+'</div>'
+    + '<div style="color:var(--muted);font-size:13px;margin-top:6px">'+(isBest?t("newBest"):t("timeSaved"))+'</div>'
+    + '<div style="background:rgba(246,241,227,.06);border-radius:12px;padding:12px 16px;margin:32px 0 24px;font-size:14px">'+t("upNextShort")+' <span class="slab" style="color:'+nw.color+'">'+t("workoutN",{l:nw.letter})+'</span> \u00b7 '+t("tag"+store.programIndex)+'</div>'
+    + '<button class="btn-primary" onclick="goHome()">'+t("back")+'</button>'
+    + '</div>';
 }
 
 function render(){
@@ -645,12 +862,13 @@ function render(){
     try{ root.innerHTML = homeHTML(); }
     catch(e2){ root.innerHTML = '<div style="padding:40px;text-align:center">Something went wrong loading saved data.<br><br><button onclick="resetAll()" style="text-decoration:underline;color:#C9A227">Reset all data</button></div>'; }
   }
+  if(screen==="workout" && active) acquireWake(); else releaseWake();
 }
 function updateCounters(){
   const cl=document.getElementById("cardsleft"), pr=document.getElementById("progress"), bt=document.getElementById("backtag"), bz=document.getElementById("bottomzone");
   if(cl) cl.textContent = active.deck.length;
   if(pr) pr.style.width = ((active.drawn/active.total)*100)+"%";
-  if(bt) bt.textContent = "NEXT CARD";
+  if(bt) bt.textContent = t("nextCard");
   if(bz && active.deck.length===0) bz.innerHTML = bottomZoneHTML();
 }
 function paintFace(showB){
@@ -666,8 +884,8 @@ function renderEndZone(){ const el=document.getElementById("endzone"); if(el) el
 // Timer tick
 setInterval(()=>{
   if(screen==="workout" && active){
-    const t=document.getElementById("timer");
-    if(t) t.textContent = fmtTime(elapsed());
+    const tEl=document.getElementById("timer");
+    if(tEl) tEl.textContent = fmtTime(elapsed());
   }
 }, 1000);
 
